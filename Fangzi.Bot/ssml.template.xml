@@ -1,0 +1,11 @@
+<speak version="1.0" 
+    xmlns="https://www.w3.org/2001/10/synthesis" 
+    xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-CN">
+    <voice name="{1}">
+        <mstts:express-as style="assistant">
+            <prosody rate="+20.00%">
+                {0}
+            </prosody>
+        </mstts:express-as>
+    </voice>
+</speak>
