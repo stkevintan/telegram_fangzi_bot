@@ -1,28 +1,24 @@
+using System.Windows.Input;
 using System;
-using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Tasks;
-using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace Fangzi.Bot.Commands
 {
-    public abstract class Command
+    public abstract class Command<T> : ICommand where T : Command<T>
     {
-        public string CommandName { get; set; }
+        public string CommandName { get; private set; }
 
-        protected IContext _context { get; set; }
+        public ISession Session { get; set; }
 
-
-        IServiceProvider _container { get; set; }
-
-        protected ITelegramBotClient _bot  { get; set; }
-        public Command(IServiceProvider container) {
-            _container = container;
-            _bot = container.GetService<ITelegramBotClient>();
+        public Message Message { get; set; }
+        public Command()
+        {
+            CommandName = typeof(T).Name.Replace("Command", "").ToLower();
         }
 
-        public Command WithContext(IContext context)
-        {
-            _context = context;
+        public ICommand Create(ISession session) {
+            Session = session;
             return this;
         }
         public abstract Task Run(string content);

@@ -14,19 +14,12 @@ namespace Fangzi.Bot
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-            // .ConfigureAppConfiguration((context, builder) =>
-            // {
-            //     builder.SetBasePath(Directory.GetCurrentDirectory());
-            //     builder.AddJsonFile("appsetings.json", optional: true);
-            //     builder.AddCommandLine(args);
-            // })
             .ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IAppConfig, AppConfigService>();
                 services.UseTelegramBot();
-                services.AddTransient<IContext, ContextService>();
                 services.AddSingleton<ISpeaker, SpeakerService>();
-                services.UserRouter();
+                services.UserRouter("TuLing");
                 services.AddHostedService<Startup>();
             });
     }

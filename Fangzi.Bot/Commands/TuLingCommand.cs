@@ -6,14 +6,20 @@ using System;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Newtonsoft.Json;
+using Telegram.Bot;
+using Telegram.Bot.Types;
 
 namespace Fangzi.Bot.Commands
 {
-    public class TuLingCommand : Command
+    public class TuLingCommand : Command<TuLingCommand>
     {
         IAppConfig _config{ get; set; }
-        public TuLingCommand(IServiceProvider container): base(container) {
-            _config = container.GetService<IAppConfig>();
+
+        ITelegramBotClient _bot{ get; set; }
+
+        public TuLingCommand(IAppConfig config, ITelegramBotClient bot) {
+            _config = config;
+            _bot = bot;
         }
         readonly HttpClient httpClient = new HttpClient();
         async Task<string> GetReply(string text)
@@ -36,7 +42,7 @@ namespace Fangzi.Bot.Commands
                 userInfo = new
                 {
                     apiKey = _config.TulingApiKey,
-                    userId = _context.Message.From.Id
+                    userId = Session.Message.From.Id
                 }
             });
             using var response = await httpClient.PostAsync(
@@ -68,7 +74,7 @@ namespace Fangzi.Bot.Commands
         {
             var reply = await GetReply(content);
             await _bot.SendTextMessageAsync(
-                chatId: _context.Message.Chat,
+                chatId: Session.Message.Chat,
                 text: reply
             );
         }

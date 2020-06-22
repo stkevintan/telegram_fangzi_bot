@@ -1,40 +1,30 @@
-using System;
+using System.Linq;
 using System.Collections.Generic;
-using Microsoft.Extensions.DependencyInjection;
-using Fangzi.Bot.Commands;
 using Fangzi.Bot.Extensions;
-using Telegram.Bot;
 using Telegram.Bot.Args;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types.Enums;
-using Fangzi.Bot.Services;
+using Fangzi.Bot.Commands;
 
 namespace Fangzi.Bot.Routers
 {
     public class Router
     {
-        Dictionary<string, Command> _commands { get; set; }
-        ITelegramBotClient _bot;
+        IEnumerable<ICommand> _commands { get; set; }
         ILogger<Router> _logger;
 
-        IAppConfig _config;
-
-        IServiceProvider _serviceProvider;
 
         public string DefaultCommandName { get; set; }
 
-        public Router(IServiceProvider serviceProvider)
+        public Router(ILogger<Router> logger, IEnumerable<ICommand> commands)
         {
-            _serviceProvider = serviceProvider;
-            _logger = serviceProvider.GetService<ILogger<Router>>();
-            _config = serviceProvider.GetService<IAppConfig>();
-            _bot = serviceProvider.GetService<ITelegramBotClient>();
-            _commands = new Dictionary<string, Command>();
+            _logger = logger;
+            _commands = commands;
         }
 
-        public Router AddCommand(string name, Command command)
+        public Router AddCommand(ICommand command)
         {
-            _commands.Add(name, command);
+            _commands.Append(command);
             return this;
         }
 
@@ -48,18 +38,18 @@ namespace Fangzi.Bot.Routers
             }
             _logger.LogTrace("Received a text message in chat {0};", message.Chat.Id);
             var info = message.Split();
-            Command cmd = _commands[info.Item1 ?? DefaultCommandName.ToLower()];
+            var cmdName = info.Item1 ?? DefaultCommandName.ToLower();
+            var cmd = _commands.FirstOrDefault(c => c.CommandName == cmdName);
             if (cmd != null)
             {
-                var ctx = _serviceProvider.GetService<IContext>().Open(e.Message);
-                await cmd.WithContext(ctx).Run(info.Item2);
+                await cmd.Create(new Session(message)).Run(info.Item2);
                 return;
             }
             // default return
-            await _bot.SendTextMessageAsync(
-                chatId: message.Chat.Id,
-                text: _config.DefaultReply
-            );
+            // await _bot.SendTextMessageAsync(
+            //     chatId: message.Chat.Id,
+            //     text: _config.DefaultReply
+            // );
         }
 
     }
