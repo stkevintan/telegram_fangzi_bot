@@ -24,7 +24,9 @@ namespace Music.Netease
         static Random random = new Random();
         public EncryptedBody EncrptedRequest(object data)
         {
-            if (data == null) return null;
+            if (data == null) {
+                throw new ArgumentNullException("Data cannot be null");
+            };
             var text = JsonConvert.SerializeObject(data);
             var secKey = createSecretKey(16);
             return new EncryptedBody()
@@ -63,7 +65,7 @@ namespace Music.Netease
             // return Convert.ToBase64String(ms.ToArray());
         }
 
-        public string rsaEncrypt(IEnumerable<byte> text, string E = PUBKEY_E, string M = PUBKEY_M)
+        string rsaEncrypt(IEnumerable<byte> text, string E = PUBKEY_E, string M = PUBKEY_M)
         {
             var hexText = string.Join("", text.Reverse().Select(c => ((int)c).ToString("X2")));
             var hexRet = BigInteger.ModPow(
@@ -72,6 +74,13 @@ namespace Music.Netease
                 BigInteger.Parse("0" + M, NumberStyles.HexNumber)
             );
             return hexRet.ToString("x2").TrimStart('0').PadLeft(256, '0');
+        }
+
+        public string Md5(string text) {
+            using var md5 = MD5.Create();
+            byte[] bs = Encoding.UTF8.GetBytes(text);
+            byte[] retBs = md5.ComputeHash(bs);
+            return String.Join("", from b in retBs select ((int)b).ToString("x2"));
         }
     }
 

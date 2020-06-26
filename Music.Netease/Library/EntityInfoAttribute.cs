@@ -7,7 +7,7 @@ namespace Music.Netease.Library
     {
         public int Type { get; private set; }
 
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public EntityInfoAttribute(int type)
         {
             Type = type;

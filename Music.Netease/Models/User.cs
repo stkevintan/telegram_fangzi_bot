@@ -1,6 +1,8 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Music.Netease.Library;
+
+#nullable disable
 namespace Music.Netease.Models
 {
     [EntityInfo(1002, Name = "Userprofile")]

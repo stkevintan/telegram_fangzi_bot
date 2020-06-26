@@ -7,7 +7,7 @@ namespace Music.Netease.Library
 {
     public class DynamicContractResolver : DefaultContractResolver
     {
-        public Dictionary<string, string> Renames = null;
+        public Dictionary<string, string>? Renames = null;
 
         public new NamingStrategy NamingStrategy = new CamelCaseNamingStrategy
         {
@@ -25,7 +25,9 @@ namespace Music.Netease.Library
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
             var property = base.CreateProperty(member, memberSerialization);
-            if (Renames != null && Renames.TryGetValue(property.PropertyName, out var jsonPropertyName))
+            if (Renames != null
+                && property.PropertyName != null
+                && Renames.TryGetValue(property.PropertyName, out var jsonPropertyName))
             {
                 property.PropertyName = jsonPropertyName;
             }

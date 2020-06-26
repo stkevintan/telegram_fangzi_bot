@@ -1,14 +1,12 @@
-﻿using System.Text;
-using System;
-using System.Threading.Tasks;
-using Music.Netease.Models;
+﻿using System;
 
 namespace Music.Netease
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
+            Console.WriteLine("Hello world!");
         }
     }
 }

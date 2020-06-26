@@ -1,5 +1,6 @@
 using Music.Netease.Library;
 
+#nullable disable
 namespace Music.Netease.Models
 {
     [EntityInfo(10)]
