@@ -1,5 +1,3 @@
-using System.Net.Http;
-using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Music.Netease.Models;
 using System.Threading.Tasks;
@@ -9,33 +7,31 @@ namespace Music.Netease.Test
     [TestClass]
     public class TestLogin
     {
-        static readonly MusicApi api = new MusicApi();
-
-        public static async Task<User> DoLogin()
-        {
-            try
-            {
-                return await api.LoginAsync(Configuration.Username, Configuration.Password);
-            }
-            catch (Exception e)
-            {
-                Assert.Fail(e.Message);
-                return null;
-            }
-        }
-
         [TestMethod]
         public async Task ShouldCellphoneLoginSuccess()
         {
-            var user = await DoLogin();
+            var api = new MusicApi();
+            var user = await api.LoginAsync(Configuration.Username, Configuration.Password);
             Assert.AreEqual(user.Name, Configuration.Nickname);
+        }
+
+        [TestMethod]
+        public async Task ShouldCookiePersist()
+        {
+            var storage = new Storage();
+            var api = new MusicApi(storage);
+            var user = api.Me ?? await api.LoginAsync(Configuration.Username, Configuration.Password);
+            api.Dispose();
+            api = new MusicApi(storage);
+            Assert.IsNotNull(api.Me);
+            await api.RecommendAsync<Song>();
         }
 
         [TestMethod]
         public async Task ShouldCookieMaintainered()
         {
-            var user = await DoLogin();
-            var ret = await api.SearchAsync<Song>("A");
+            await Context.EnsureLogined();
+            var ret = await Context.Api.SearchAsync<Song>("A");
         }
     }
 }

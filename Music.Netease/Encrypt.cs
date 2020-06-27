@@ -15,6 +15,7 @@ namespace Music.Netease
     {
         static readonly byte[] NONCE = Encoding.UTF8.GetBytes("0CoJUm6Qyw8W8jud");
         static readonly byte[] IV = Encoding.UTF8.GetBytes("0102030405060708");
+        static readonly byte[] PCKey = Encoding.UTF8.GetBytes("e82ckenh8dichen8");
 
         // const string PUBKEY = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDgtQn2JZ34ZC28NWYpAUd98iZ37BUrX/aKzmFbt7clFSs6sXqHauqKWqdtLkF2KexO40H1YTX8z2lSgBBOAxLsvaklV8k4cBFK9snQXE9/DDaFt6Rr7iVZMldczhC0JNgTz+SHXT6CBHuX3e9SdB1Ua44oncaTWz7OBGLbCiK45wIDAQAB";
         const string PUBKEY_M = "00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7";
@@ -22,21 +23,36 @@ namespace Music.Netease
 
 
         static Random random = new Random();
-        public EncryptedBody EncrptedRequest(object data)
+        public Dictionary<string, string> EncryptWebRequest(object data)
         {
-            if (data == null) {
+            if (data == null)
+            {
                 throw new ArgumentNullException("Data cannot be null");
             };
             var text = JsonConvert.SerializeObject(data);
-            var secKey = createSecretKey(16);
-            return new EncryptedBody()
-            {
-                @params = aesEncrypt(aesEncrypt(text, NONCE, IV), secKey, IV),
-                encSecKey = rsaEncrypt(secKey)
+            var secKey = CreateSecretKey(16);
+            return new Dictionary<string, string>{
+                {"params", aesEncrypt(aesEncrypt(text, NONCE, IV), secKey, IV)},
+                {"encSecKey", rsaEncrypt(secKey)}
+            };
+        }
+        public Dictionary<string, string> EncryptPCRequest(string url, object data)
+        {
+            var text = JsonConvert.SerializeObject(data);
+            var message = $"nobody{url}use{text}md5forencrypt";
+            var digest = Md5(message);
+            var text2 = $"{url}-36cd479b6b5-{text}-36cd479b6b5-{digest}";
+            return new Dictionary<string, string> {
+                { "params", aesEncrypt(text2,PCKey,new byte[]{}, CipherMode.ECB).ToUpper() }
             };
         }
 
-        byte[] createSecretKey(int size)
+        public string DecryptPCResponse(string text)
+        {
+            return aesDecrypt(Convert.FromBase64String(text), PCKey, new byte[] { }, CipherMode.ECB);
+        }
+
+        public byte[] CreateSecretKey(int size)
         {
             const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return Encoding.UTF8.GetBytes(Enumerable
@@ -52,7 +68,7 @@ namespace Music.Netease
 
             aes.Key = Key;
             aes.IV = IV;
-            aes.Mode = CipherMode.CBC;
+            aes.Mode = Mode;
 
             using var encryptor = aes.CreateEncryptor();
             var result = encryptor.TransformFinalBlock(source, 0, source.Length);
@@ -63,6 +79,17 @@ namespace Music.Netease
             // writer.Write(text);
             // writer.Close(); // must close to flush all the data
             // return Convert.ToBase64String(ms.ToArray());
+        }
+
+        string aesDecrypt(byte[] source, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
+        {
+            var aes = Aes.Create();
+            aes.Key = Key;
+            aes.IV = IV;
+            aes.Mode = Mode;
+            using var decryptor = aes.CreateDecryptor();
+            var result = decryptor.TransformFinalBlock(source, 0, source.Length);
+            return Encoding.UTF8.GetString(result);
         }
 
         string rsaEncrypt(IEnumerable<byte> text, string E = PUBKEY_E, string M = PUBKEY_M)
@@ -76,7 +103,8 @@ namespace Music.Netease
             return hexRet.ToString("x2").TrimStart('0').PadLeft(256, '0');
         }
 
-        public string Md5(string text) {
+        public string Md5(string text)
+        {
             using var md5 = MD5.Create();
             byte[] bs = Encoding.UTF8.GetBytes(text);
             byte[] retBs = md5.ComputeHash(bs);

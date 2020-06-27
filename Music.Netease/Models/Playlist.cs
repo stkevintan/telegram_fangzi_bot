@@ -8,6 +8,7 @@ namespace Music.Netease.Models
     public class Playlist : BaseModel
     {
         public long Id { get; set; }
+
         public string Name { get; set; }
 
         public int BookCount { get; set; }
@@ -25,6 +26,7 @@ namespace Music.Netease.Models
         public bool Subscribed { get; set; }
 
         public int TrackCount { get; set; }
+
         public long UserId { get; set; }
     }
 }

@@ -19,7 +19,7 @@ namespace Fangzi.Bot
                 services.AddSingleton<IAppConfig, AppConfigService>();
                 services.UseTelegramBot();
                 services.AddSingleton<ISpeaker, SpeakerService>();
-                services.UserRouter("TuLing");
+                services.UseRouter("TuLing");
                 services.AddHostedService<Startup>();
             });
     }

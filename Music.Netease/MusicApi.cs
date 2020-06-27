@@ -1,29 +1,21 @@
+using System.Reflection;
+using System;
 using System.Net;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Music.Netease.Models;
 using Music.Netease.Library;
 
+
 namespace Music.Netease
 {
     public class MusicApi : IMusicApi, IDisposable
     {
-        const string PUBLIC_PATH = "http://music.163.com";
-        private static readonly Encrypt enc = new Encrypt();
-        private static readonly Dictionary<string, string> headers = new Dictionary<string, string>
-        {
-                {"Accept", "*/*"},
-                {"Accept-Language", "zh-CN,zh;q=0.8,gl;q=0.6,zh-TW;q=0.4"},
-                {"Connection", "keep-alive"},
-                {"Host", "music.163.com"},
-                {"Referer", @"http://music.163.com"},
-                {"User-Agent", @"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36"}
-        };
+        static readonly Encrypt enc = new Encrypt();
         private static readonly JsonSerializerSettings settings = new JsonSerializerSettings
         {
             ContractResolver = new DefaultContractResolver
@@ -34,27 +26,96 @@ namespace Music.Netease
                 }
             }
         };
-        CookieContainer cookieContainer;
+        CookieContainer cookieJar;
+
+        IStorage? storage;
+
+        List<IRequestProvider> RequestProviders = new List<IRequestProvider>();
+
         readonly HttpClient client;
 
-        public MusicApi()
+        public User? Me { get; private set; }
+
+        public MusicApi(IStorage? storage = null)
         {
-            cookieContainer = new CookieContainer();
-            // cookieContainer.Add(new Cookie("os", "pc", PUBLIC_PATH, PUBLIC_PATH));
+            this.storage = storage;
+            var session = storage?.LoadSession();
+            if (session != null)
+            {
+                Me = session.User;
+                cookieJar = session.CookieJar;
+            }
+            else
+            {
+                cookieJar = new CookieContainer();
+            }
+            initRequestProviders();
+
+            checkSession();
             client = new HttpClient(new HttpClientHandler()
             {
                 AllowAutoRedirect = true,
                 UseCookies = true,
-                CookieContainer = cookieContainer,
+                CookieContainer = cookieJar,
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
             });
+        }
+        void initRequestProviders()
+        {
+            //   RequestProviders.Add(new PCRequestProvider(cookieJar));
+            // RequestProviders.Add(new WebRequestProvider(cookieJar));
+            var IType = typeof(IRequestProvider);
+            var assembly = Assembly.GetAssembly(IType)!;
+            var list = (from t in assembly.GetExportedTypes() where IType.IsAssignableFrom(t) && !t.IsInterface select t);
+            foreach (var t in list)
+            {
+                RequestProviders.Add((IRequestProvider)Activator.CreateInstance(t, cookieJar)!);
+            }
+        }
+        void checkSession()
+        {
+            foreach (var rp in RequestProviders)
+            {
+                var cookies = cookieJar.GetCookies(rp.PublicUri);
+                if (cookies.Count() == 0) { rp.InitCookies(); }
+                // if cookie is expired, clear the login status.
+                var count = (from c in cookies where c.Expired select c).Count();
+                if (count > 0)
+                {
+                    cookies.Clear();
+                    Me = null;
+                    storage?.ClearSession();
+                    return;
+                }
+            }
         }
 
         public void Dispose()
         {
+            if (Me != null)
+            {
+                storage?.SaveSession(new Session(Me, cookieJar));
+            }
+            else
+            {
+                storage?.ClearSession();
+            }
             client.Dispose();
         }
 
+        #region API
+        public async Task<User> LoginAsync(string username, string password)
+        {
+            var url = "/weapi/login/cellphone";
+            var body = new Dictionary<string, object>
+            {
+                {"phone", username},
+                {"password", enc.Md5(password)},
+                {"rememberLogin", "true"}
+            };
+            var res = await RequestAsync(new { Profile = default(User) }, url, body);
+            return Me = AssertNotNull(res?.Profile);
+        }
 
         public async Task<ListResult<T>> SearchAsync<T>(string keyword, int offset = 0, bool total = true, int limit = 50) where T : BaseModel
         {
@@ -101,7 +162,7 @@ namespace Music.Netease
             return AssertNotNull(ret).Point;
         }
 
-        public async Task<ListResult<Playlist>> UserPlaylistAsync(long uid, int offset = 0, int limit = 50)
+        public async Task<List<Playlist>> UserPlaylistAsync(long uid, int offset = 0, int limit = 50)
         {
             var path = "/weapi/user/playlist";
             var body = new Dictionary<string, object> {
@@ -109,10 +170,10 @@ namespace Music.Netease
                 {"offset", offset},
                 {"limit", limit},
             };
-            return AssertNotNull(await RequestAsync<ListResult<Playlist>>(path, body));
+            var ret = await RequestAsync(new { Playlist = default(List<Playlist>) }, path, body);
+            return AssertNotNull(ret?.Playlist);
         }
 
-        // Recommend playlist
         public async Task<List<T>> RecommendAsync<T>() where T : BaseModel
         {
             var type = typeof(T);
@@ -133,48 +194,39 @@ namespace Music.Netease
             return AssertNotNull(ret?.Recommend);
         }
 
-        public async Task<User> LoginAsync(string username, string password)
+        public async Task<List<Song>> PersonalFmAsync()
         {
-            var url = "/weapi/login/cellphone";
-            var body = new Dictionary<string, object>
-            {
-                {"phone", username},
-                {"password", enc.Md5(password)},
-                {"rememberLogin", "true"}
-            };
-            var res = await RequestAsync(new { Profile = default(User) }, url, body);
-            return AssertNotNull(res?.Profile);
+            var path = "/weapi/v1/radio/get";
+            var ret = await RequestAsync(new { Data = default(List<Song>) }, path);
+            return AssertNotNull(ret?.Data);
         }
 
+        /// <summary>
+        ///  Get Song's playback url
+        /// </summary>
+        public async Task SongUrlAsync(long Id, int br = 999000)
+        {
+            var path = "/weapi/song/enhance/player/url";
+            var body = new Dictionary<string, object> {
+                {"ids", new long[] {Id}},
+                {"br", br}
+            };
+            var ret = await RawRequestAsync(path, body);
+        }
+        #endregion API
 
         async Task<string> RawRequestAsync(string path, Dictionary<string, object>? body = null, HttpMethod? method = null)
         {
-            var endpoint = new Uri($"{PUBLIC_PATH}{path}");
-            if (method == null)
-            {
-                method = HttpMethod.Post;
-            }
-            var cookies = cookieContainer.GetCookies(endpoint);
-            var csrfToken = (from c in cookies where c.Name == "__csrf" select c.Value).FirstOrDefault();
-            if (method == HttpMethod.Post && !String.IsNullOrEmpty(csrfToken))
-            {
-                if (body == null)
-                {
-                    body = new Dictionary<string, object>();
-                }
-                body["csrf_token"] = csrfToken;
-            }
-
-            var req = new HttpRequestMessage
-            {
-                Method = method,
-                RequestUri = endpoint,
-                Content = body == null ? null : new FormUrlEncodedContent(enc.EncrptedRequest(body).AsEnumerable())
-            };
-            headers.ToList().ForEach(pair => req.Headers.Add(pair.Key, pair.Value));
-            HttpResponseMessage response = await client.SendAsync(req);
+            var reqProvider = (
+                from rp in RequestProviders
+                where rp.Match(path)
+                select rp
+            ).Single();
+            var resMessage = reqProvider.CreateHttpRequestMessage(path, body, method);
+            HttpResponseMessage response = await client.SendAsync(resMessage);
             response.EnsureSuccessStatusCode();
             var str = await response.Content.ReadAsStringAsync();
+            str = reqProvider.ResponsePipe(str);
             EnsureSuccessResultCode(str);
             return str;
         }

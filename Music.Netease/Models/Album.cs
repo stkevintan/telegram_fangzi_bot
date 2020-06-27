@@ -7,7 +7,9 @@ namespace Music.Netease.Models
     public class Album : BaseModel
     {
         public long Id { get; set; }
+
         public string Name { get; set; }
+
         public Artist Artist { get; set; }
 
         public long PublishTime { get; set; }

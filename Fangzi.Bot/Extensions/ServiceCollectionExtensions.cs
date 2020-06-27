@@ -18,7 +18,7 @@ namespace Fangzi.Bot.Extensions
             );
         }
 
-        public static void UserRouter(this IServiceCollection services, string defaultRouter)
+        public static void UseRouter(this IServiceCollection services, string defaultRouter)
         {
             var assembly = Assembly.GetEntryAssembly();
             var ICommandType = typeof(ICommand);

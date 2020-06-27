@@ -1,3 +1,4 @@
+using System.Runtime.Serialization;
 using System;
 using System.Collections.Generic;
 
@@ -7,15 +8,14 @@ namespace Music.Netease.Models
     public class ListResult<T>
     {
         public List<T> Items { get; set; }
+
         public int Count { get; set; }
     }
 
-    public class Result<T, E> where E: Exception {
-        
-    }
     public interface BaseModel
     {
         long Id { get; set; }
+
         string Name { get; set; }
     }
 
@@ -27,6 +27,7 @@ namespace Music.Netease.Models
     public class ErrorResponse : BaseResponse
     {
         public string Msg { get; set; }
+        
         public string Message { get; set; }
     }
 }
