@@ -11,7 +11,7 @@ using Music.Netease.Models;
 
 namespace Music.Netease
 {
-    public class Encrypt
+    public static class Encrypt
     {
         static readonly byte[] NONCE = Encoding.UTF8.GetBytes("0CoJUm6Qyw8W8jud");
         static readonly byte[] IV = Encoding.UTF8.GetBytes("0102030405060708");
@@ -23,7 +23,7 @@ namespace Music.Netease
 
 
         static Random random = new Random();
-        public Dictionary<string, string> EncryptWebRequest(object data)
+        public static Dictionary<string, string> EncryptWebRequest(object data)
         {
             if (data == null)
             {
@@ -36,7 +36,7 @@ namespace Music.Netease
                 {"encSecKey", rsaEncrypt(secKey)}
             };
         }
-        public Dictionary<string, string> EncryptPCRequest(string url, object data)
+        public static Dictionary<string, string> EncryptPCRequest(string url, object data)
         {
             var text = JsonConvert.SerializeObject(data);
             var message = $"nobody{url}use{text}md5forencrypt";
@@ -47,12 +47,12 @@ namespace Music.Netease
             };
         }
 
-        public string DecryptPCResponse(string text)
+        public static string DecryptPCResponse(string text)
         {
             return aesDecrypt(Convert.FromBase64String(text), PCKey, new byte[] { }, CipherMode.ECB);
         }
 
-        public byte[] CreateSecretKey(int size)
+        static byte[] CreateSecretKey(int size)
         {
             const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return Encoding.UTF8.GetBytes(Enumerable
@@ -61,7 +61,7 @@ namespace Music.Netease
             .ToArray());
         }
 
-        string aesEncrypt(string text, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
+        static string aesEncrypt(string text, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
         {
             var aes = Aes.Create();
             var source = Encoding.UTF8.GetBytes(text);
@@ -81,7 +81,7 @@ namespace Music.Netease
             // return Convert.ToBase64String(ms.ToArray());
         }
 
-        string aesDecrypt(byte[] source, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
+        static string aesDecrypt(byte[] source, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
         {
             var aes = Aes.Create();
             aes.Key = Key;
@@ -92,7 +92,7 @@ namespace Music.Netease
             return Encoding.UTF8.GetString(result);
         }
 
-        string rsaEncrypt(IEnumerable<byte> text, string E = PUBKEY_E, string M = PUBKEY_M)
+        static string rsaEncrypt(IEnumerable<byte> text, string E = PUBKEY_E, string M = PUBKEY_M)
         {
             var hexText = string.Join("", text.Reverse().Select(c => ((int)c).ToString("X2")));
             var hexRet = BigInteger.ModPow(
@@ -103,7 +103,7 @@ namespace Music.Netease
             return hexRet.ToString("x2").TrimStart('0').PadLeft(256, '0');
         }
 
-        public string Md5(string text)
+        public static string Md5(string text)
         {
             using var md5 = MD5.Create();
             byte[] bs = Encoding.UTF8.GetBytes(text);
@@ -111,5 +111,4 @@ namespace Music.Netease
             return String.Join("", from b in retBs select ((int)b).ToString("x2"));
         }
     }
-
 }

@@ -1,11 +1,12 @@
 using System.Net;
-using System.Linq;
 using System.Collections.Generic;
 using System;
 using System.Net.Http;
+using System.Threading.Tasks;
+
 namespace Music.Netease.Library
 {
-    public class PCRequestProvider : IRequestProvider
+    public class PCRequestProvider : RequestProvider
     {
         static readonly Dictionary<string, string> headers = new Dictionary<string, string>
         {
@@ -17,20 +18,14 @@ namespace Music.Netease.Library
         };
 
         static readonly Uri publicUri = new Uri("https://interface.music.163.com");
-        Encrypt enc = new Encrypt();
 
-        public Uri PublicUri => publicUri;
+        public override Uri PublicUri => publicUri;
 
-        public Dictionary<string, string> Headers => headers;
+        public override Dictionary<string, string> Headers => headers;
 
+        public PCRequestProvider(CookieContainer cookieJar) : base(cookieJar) { }
 
-        CookieContainer cookieJar;
-        public PCRequestProvider(CookieContainer cookieJar)
-        {
-            this.cookieJar = cookieJar;
-        }
-
-        public void InitCookies()
+        public override void InitCookies()
         {
             var cookies = new CookieCollection();
             cookies.Add(new Cookie("os", "pc"));
@@ -42,7 +37,7 @@ namespace Music.Netease.Library
             cookieJar.Add(publicUri, cookies);
         }
 
-        public bool Match(string path)
+        public override bool Match(string path)
         {
             return path.StartsWith("/eapi/");
         }
@@ -50,7 +45,7 @@ namespace Music.Netease.Library
         /* SampleResult
         /api/song/lyric-36cd479b6b5-{"os":"pc","id":"4875310","lv":"-1","kv":"-1","tv":"-1","e_r":true,"header":"{\"os\":\"pc\",\"appver\":\"2.7.1.198242\",\"deviceId\":\"89D32E91D9266D763069C70FE495CFAAA6A7B06FF875A4A3DD42\",\"requestId\":\"39489139\",\"clientSign\":\"80:32:53:62:EA:62@@@354344325F453432395F393134335F323832382E@@@@@@09f160ca-67f8-45fa-bf59-1c7d5f1d0f1cafdcbed7a76f98550ab960d515230587\",\"osver\":\"Microsoft-Windows-10-Enterprise-Edition-build-19041-64bit\",\"MUSIC_U\":\"a7b1b33884539e708dbde110717061d192583b5bce3eb09f6bc857199e66f65733a649814e309366\"}"}-36cd479b6b5-4aa30fcdc6c1fb2c6eedccfc90114f0d
         */
-        public HttpRequestMessage? CreateHttpRequestMessage(string path, Dictionary<string, object>? body, HttpMethod? method)
+        protected override HttpRequestMessage? CreateHttpRequestMessage(string path, Dictionary<string, object>? body, HttpMethod? method)
         {
             if (!Match(path)) return null;
             method = method ?? HttpMethod.Post;
@@ -79,13 +74,13 @@ namespace Music.Netease.Library
                         {"MUSIC_U", cookies["MUSIC_U"]}
                         // {"clientSign"}
                     };
-            req.Content = new FormUrlEncodedContent(enc.EncryptPCRequest(req.RequestUri.AbsoluteUri, body));
+            req.Content = new FormUrlEncodedContent(Encrypt.EncryptPCRequest(req.RequestUri.AbsoluteUri, body));
             return req;
         }
-
-        public string ResponsePipe(string text)
+        public override async Task<string> RequestAsync(string path, Dictionary<string, object>? body, HttpMethod? method)
         {
-            return enc.DecryptPCResponse(text);
+            var str = await base.RequestAsync(path, body, method);
+            return Encrypt.DecryptPCResponse(str);
         }
     }
 }

@@ -5,7 +5,7 @@ using System;
 using System.Net.Http;
 namespace Music.Netease.Library
 {
-    public class WebRequestProvider : IRequestProvider
+    public class WebRequestProvider : RequestProvider
     {
         static readonly Dictionary<string, string> headers = new Dictionary<string, string>
         {
@@ -18,29 +18,18 @@ namespace Music.Netease.Library
         };
 
         static readonly Uri publicUri = new Uri("http://music.163.com");
-        Encrypt enc = new Encrypt();
 
-        public Uri PublicUri => publicUri;
+        public override Uri PublicUri => publicUri;
 
-        public Dictionary<string, string> Headers => headers;
+        public override Dictionary<string, string> Headers => headers;
 
 
-        CookieContainer cookieJar;
-        public WebRequestProvider(CookieContainer cookieJar)
-        {
-            this.cookieJar = cookieJar;
-        }
-
-        public void InitCookies()
-        {
-
-        }
-
-        public bool Match(string path)
+        public WebRequestProvider(CookieContainer cookieJar) : base(cookieJar) { }
+        public override bool Match(string path)
         {
             return path.StartsWith("/weapi/");
         }
-        public HttpRequestMessage? CreateHttpRequestMessage(string path, Dictionary<string, object>? body, HttpMethod? method)
+        protected override HttpRequestMessage? CreateHttpRequestMessage(string path, Dictionary<string, object>? body, HttpMethod? method)
         {
             if (!Match(path)) return null;
             method = method ?? HttpMethod.Post;
@@ -60,12 +49,8 @@ namespace Music.Netease.Library
             body = body ?? new Dictionary<string, object>();
             var cookies = cookieJar.GetCookies(publicUri);
             body["csrf_token"] = (from c in cookies where c.Name == "__csrf" select c.Value).FirstOrDefault();
-            req.Content = new FormUrlEncodedContent(enc.EncryptWebRequest(body));
+            req.Content = new FormUrlEncodedContent(Encrypt.EncryptWebRequest(body));
             return req;
-        }
-        public string ResponsePipe(string text)
-        {
-            return text;
         }
     }
 }

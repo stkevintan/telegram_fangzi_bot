@@ -15,24 +15,11 @@ namespace Music.Netease
 {
     public class MusicApi : IMusicApi, IDisposable
     {
-        static readonly Encrypt enc = new Encrypt();
-        private static readonly JsonSerializerSettings settings = new JsonSerializerSettings
-        {
-            ContractResolver = new DefaultContractResolver
-            {
-                NamingStrategy = new CamelCaseNamingStrategy
-                {
-                    OverrideSpecifiedNames = false
-                }
-            }
-        };
         CookieContainer cookieJar;
 
         IStorage? storage;
 
-        List<IRequestProvider> RequestProviders = new List<IRequestProvider>();
-
-        readonly HttpClient client;
+        List<RequestProvider> requestProviders = new List<RequestProvider>();
 
         public User? Me { get; private set; }
 
@@ -52,29 +39,20 @@ namespace Music.Netease
             initRequestProviders();
 
             checkSession();
-            client = new HttpClient(new HttpClientHandler()
-            {
-                AllowAutoRedirect = true,
-                UseCookies = true,
-                CookieContainer = cookieJar,
-                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
-            });
         }
         void initRequestProviders()
         {
-            //   RequestProviders.Add(new PCRequestProvider(cookieJar));
-            // RequestProviders.Add(new WebRequestProvider(cookieJar));
-            var IType = typeof(IRequestProvider);
-            var assembly = Assembly.GetAssembly(IType)!;
-            var list = (from t in assembly.GetExportedTypes() where IType.IsAssignableFrom(t) && !t.IsInterface select t);
+            var rType = typeof(RequestProvider);
+            var assembly = Assembly.GetAssembly(rType)!;
+            var list = (from t in assembly.GetExportedTypes() where rType.IsAssignableFrom(t) && !t.IsAbstract select t);
             foreach (var t in list)
             {
-                RequestProviders.Add((IRequestProvider)Activator.CreateInstance(t, cookieJar)!);
+                requestProviders.Add((RequestProvider)Activator.CreateInstance(t, cookieJar)!);
             }
         }
         void checkSession()
         {
-            foreach (var rp in RequestProviders)
+            foreach (var rp in requestProviders)
             {
                 var cookies = cookieJar.GetCookies(rp.PublicUri);
                 if (cookies.Count() == 0) { rp.InitCookies(); }
@@ -100,7 +78,16 @@ namespace Music.Netease
             {
                 storage?.ClearSession();
             }
-            client.Dispose();
+            requestProviders.ForEach(r => r.Dispose());
+        }
+
+        ResponseResolver Request(
+           string path,
+           Dictionary<string, object>? body = null,
+           HttpMethod? method = null)
+        {
+            var provider = (from r in requestProviders where r.Match(path) select r).Single();
+            return new ResponseResolver(provider.RequestAsync(path, body, method));
         }
 
         #region API
@@ -110,11 +97,11 @@ namespace Music.Netease
             var body = new Dictionary<string, object>
             {
                 {"phone", username},
-                {"password", enc.Md5(password)},
+                {"password", Encrypt.Md5(password)},
                 {"rememberLogin", "true"}
             };
-            var res = await RequestAsync(new { Profile = default(User) }, url, body);
-            return Me = AssertNotNull(res?.Profile);
+            var res = await Request(url, body).Into(new { Profile = default(User) });
+            return Me = Utility.AssertNotNull(res?.Profile);
         }
 
         public async Task<ListResult<T>> SearchAsync<T>(string keyword, int offset = 0, bool total = true, int limit = 50) where T : BaseModel
@@ -135,12 +122,9 @@ namespace Music.Netease
                 {"total", total ? "true":"false"},
                 {"limit", limit}
             };
-            var res = await RequestAsync(
-                method: HttpMethod.Post,
-                typeObject: new { Result = default(ListResult<T>) },
-                path: url,
-                body: body,
-                settings: new JsonSerializerSettings
+            var res = await Request(url, body).Into(
+                new { Result = default(ListResult<T>) },
+                new JsonSerializerSettings
                 {
                     ContractResolver = new DynamicContractResolver
                     {
@@ -150,16 +134,16 @@ namespace Music.Netease
                         }
                     }
                 });
-            return AssertNotNull(res?.Result);
+            return Utility.AssertNotNull(res?.Result);
         }
 
         public async Task<int> DailyTaskAsync(bool isMobile = true)
         {
             var path = "/weapi/point/dailyTask";
             var body = new Dictionary<string, object> { { "type", isMobile ? 0 : 1 } };
-            var ret = await RequestAsync(new { Point = default(int) }, path, body);
+            var ret = await Request(path, body).Into(new { Point = default(int) });
             //"{\"point\":4,\"code\":200}"
-            return AssertNotNull(ret).Point;
+            return Utility.AssertNotNull(ret).Point;
         }
 
         public async Task<List<Playlist>> UserPlaylistAsync(long uid, int offset = 0, int limit = 50)
@@ -170,8 +154,8 @@ namespace Music.Netease
                 {"offset", offset},
                 {"limit", limit},
             };
-            var ret = await RequestAsync(new { Playlist = default(List<Playlist>) }, path, body);
-            return AssertNotNull(ret?.Playlist);
+            var ret = await Request(path, body).Into(new { Playlist = default(List<Playlist>) });
+            return Utility.AssertNotNull(ret?.Playlist);
         }
 
         public async Task<List<T>> RecommendAsync<T>() where T : BaseModel
@@ -190,15 +174,15 @@ namespace Music.Netease
             {
                 throw new NotSupportedException($"Recommend {type.Name} is not supported");
             }
-            var ret = await RequestAsync(new { Recommend = default(List<T>) }, path);
-            return AssertNotNull(ret?.Recommend);
+            var ret = await Request(path).Into(new { Recommend = default(List<T>) });
+            return Utility.AssertNotNull(ret?.Recommend);
         }
 
         public async Task<List<Song>> PersonalFmAsync()
         {
             var path = "/weapi/v1/radio/get";
-            var ret = await RequestAsync(new { Data = default(List<Song>) }, path);
-            return AssertNotNull(ret?.Data);
+            var ret = await Request(path).Into(new { Data = default(List<Song>) });
+            return Utility.AssertNotNull(ret?.Data);
         }
 
         /// <summary>
@@ -206,75 +190,13 @@ namespace Music.Netease
         /// </summary>
         public async Task SongUrlAsync(long Id, int br = 999000)
         {
-            var path = "/weapi/song/enhance/player/url";
+            var path = "/eapi/song/enhance/player/url";
             var body = new Dictionary<string, object> {
                 {"ids", new long[] {Id}},
                 {"br", br}
             };
-            var ret = await RawRequestAsync(path, body);
+            var ret = await Request(path, body).Into();
         }
         #endregion API
-
-        async Task<string> RawRequestAsync(string path, Dictionary<string, object>? body = null, HttpMethod? method = null)
-        {
-            var reqProvider = (
-                from rp in RequestProviders
-                where rp.Match(path)
-                select rp
-            ).Single();
-            var resMessage = reqProvider.CreateHttpRequestMessage(path, body, method);
-            HttpResponseMessage response = await client.SendAsync(resMessage);
-            response.EnsureSuccessStatusCode();
-            var str = await response.Content.ReadAsStringAsync();
-            str = reqProvider.ResponsePipe(str);
-            EnsureSuccessResultCode(str);
-            return str;
-        }
-
-        T AssertNotNull<T>(T? obj) where T : class
-        {
-            if (obj == null)
-            {
-                throw new NullReferenceException();
-            }
-            return obj;
-        }
-        void EnsureSuccessResultCode(string str)
-        {
-            var result = JsonConvert.DeserializeObject<ErrorResponse>(str, settings);
-            if (result == null)
-            {
-                throw new HttpRequestException($"Response is empty");
-            }
-            if (result.Code != 200)
-            {
-                throw new HttpRequestException($"Request failed with {result.Code}, Detail: {result.Message ?? result.Msg}")
-                {
-                    Data = {
-                        {"Code", result.Code},
-                        {"Message", result.Message ?? result.Msg}
-                    }
-                };
-            }
-        }
-        async Task<T?> RequestAsync<T>(
-            string path,
-            Dictionary<string, object>? body = null,
-            HttpMethod? method = null,
-            JsonSerializerSettings? settings = null) where T : class
-        {
-            var str = await RawRequestAsync(path, body, method);
-            return JsonConvert.DeserializeObject<T>(str, settings ?? MusicApi.settings);
-        }
-        async Task<T?> RequestAsync<T>(
-            T typeObject,
-            string path,
-            Dictionary<string, object>? body = null,
-            HttpMethod? method = null,
-            JsonSerializerSettings? settings = null) where T : class
-        {
-            var str = await RawRequestAsync(path, body, method);
-            return JsonConvert.DeserializeAnonymousType(str, typeObject, settings ?? MusicApi.settings);
-        }
     }
 }
