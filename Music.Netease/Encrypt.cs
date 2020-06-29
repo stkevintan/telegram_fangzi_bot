@@ -1,4 +1,4 @@
-using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -7,7 +7,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using System.Security.Cryptography;
 using System.Numerics;
-using Music.Netease.Models;
+using Music.Netease.Library;
 
 namespace Music.Netease
 {
@@ -23,33 +23,42 @@ namespace Music.Netease
 
 
         static Random random = new Random();
-        public static Dictionary<string, string> EncryptWebRequest(object data)
+        public static Dictionary<string, string> EncryptWebRequest(object data, byte[]? secKey = null)
         {
             if (data == null)
             {
                 throw new ArgumentNullException("Data cannot be null");
             };
-            var text = JsonConvert.SerializeObject(data);
-            var secKey = CreateSecretKey(16);
+            var text = data is string ? (string)data : JsonConvert.SerializeObject(data);
+            secKey = secKey ?? CreateSecretKey(16);
+            // System.IO.File.WriteAllText("/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/fixture/web_encrypt_data.in", text);
+            // System.IO.File.WriteAllBytes("/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/fixture/web_encrypt_secKey.in", secKey);
+            // System.IO.File.WriteAllText("/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/fixture/web_encrypt_params.out", aesEncrypt(aesEncrypt(text, NONCE, IV), secKey, IV));
+            // System.IO.File.WriteAllText("/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/fixture/web_encrypt_encSecKey.out", rsaEncrypt(secKey));
+
             return new Dictionary<string, string>{
                 {"params", aesEncrypt(aesEncrypt(text, NONCE, IV), secKey, IV)},
                 {"encSecKey", rsaEncrypt(secKey)}
             };
         }
-        public static Dictionary<string, string> EncryptPCRequest(string url, object data)
+        public static Dictionary<string, string> EncryptPCRequest(string path, object data)
         {
-            var text = JsonConvert.SerializeObject(data);
-            var message = $"nobody{url}use{text}md5forencrypt";
+            var text = data is string ? (string)data : JsonConvert.SerializeObject(data);
+            // Ssytem.IO.File.WriteAllText("/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/fixture/pc_encrypt_lyric.in", text);
+            var target = path.Replace("/eapi", "/api");
+            var message = $"nobody{target}use{text}md5forencrypt";
             var digest = Md5(message);
-            var text2 = $"{url}-36cd479b6b5-{text}-36cd479b6b5-{digest}";
+            var text2 = $"{target}-36cd479b6b5-{text}-36cd479b6b5-{digest}";
+            var encBytes = Convert.FromBase64String(aesEncrypt(text2, PCKey, Mode: CipherMode.ECB));
+            // System.IO.File.WriteAllText("/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/fixture/pc_encrypt_lyric.out", encBytes.ToHexString());
             return new Dictionary<string, string> {
-                { "params", aesEncrypt(text2,PCKey,new byte[]{}, CipherMode.ECB).ToUpper() }
+                { "params", encBytes.ToHexString() }
             };
         }
 
-        public static string DecryptPCResponse(string text)
+        public static string DecryptPCResponse(byte[] bytes)
         {
-            return aesDecrypt(Convert.FromBase64String(text), PCKey, new byte[] { }, CipherMode.ECB);
+            return aesDecrypt(bytes, PCKey, Mode: CipherMode.ECB);
         }
 
         static byte[] CreateSecretKey(int size)
@@ -61,13 +70,13 @@ namespace Music.Netease
             .ToArray());
         }
 
-        static string aesEncrypt(string text, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
+        static string aesEncrypt(string text, byte[] Key, byte[]? IV = null, CipherMode Mode = CipherMode.CBC)
         {
             var aes = Aes.Create();
             var source = Encoding.UTF8.GetBytes(text);
 
             aes.Key = Key;
-            aes.IV = IV;
+            aes.IV = IV ?? Enumerable.Repeat((byte)0, aes.IV.Length).ToArray();
             aes.Mode = Mode;
 
             using var encryptor = aes.CreateEncryptor();
@@ -81,11 +90,13 @@ namespace Music.Netease
             // return Convert.ToBase64String(ms.ToArray());
         }
 
-        static string aesDecrypt(byte[] source, byte[] Key, byte[] IV, CipherMode Mode = CipherMode.CBC)
+        static string aesDecrypt(byte[] source, byte[] Key, byte[]? IV = null, CipherMode Mode = CipherMode.CBC)
         {
             var aes = Aes.Create();
             aes.Key = Key;
-            aes.IV = IV;
+            aes.BlockSize = 128;
+            System.IO.File.WriteAllBytes("/home/kevin/Projects/Fangzi.Telegram.Bot/ApiTest/song.dat", source);
+            aes.IV = IV ?? Enumerable.Repeat((byte)0, aes.IV.Length).ToArray();
             aes.Mode = Mode;
             using var decryptor = aes.CreateDecryptor();
             var result = decryptor.TransformFinalBlock(source, 0, source.Length);
@@ -94,7 +105,7 @@ namespace Music.Netease
 
         static string rsaEncrypt(IEnumerable<byte> text, string E = PUBKEY_E, string M = PUBKEY_M)
         {
-            var hexText = string.Join("", text.Reverse().Select(c => ((int)c).ToString("X2")));
+            var hexText = text.Reverse().ToHexString();
             var hexRet = BigInteger.ModPow(
                 BigInteger.Parse("0" + hexText, NumberStyles.HexNumber),
                 BigInteger.Parse("0" + E, NumberStyles.HexNumber),
@@ -108,7 +119,7 @@ namespace Music.Netease
             using var md5 = MD5.Create();
             byte[] bs = Encoding.UTF8.GetBytes(text);
             byte[] retBs = md5.ComputeHash(bs);
-            return String.Join("", from b in retBs select ((int)b).ToString("x2"));
+            return retBs.ToHexString("x2");
         }
     }
 }

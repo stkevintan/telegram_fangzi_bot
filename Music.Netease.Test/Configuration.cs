@@ -12,12 +12,13 @@ namespace Music.Netease.Test
         public static readonly string Password;
 
         public static readonly string Nickname;
+
+        public static readonly string Root = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName;
         static Configuration()
         {
             //"/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/bin/Debug/netcoreapp3.1"
-            var @base = Directory.GetCurrentDirectory();
             var conf = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetParent(@base).Parent.Parent.FullName)
+            .SetBasePath(Root)
             .AddJsonFile("appsettings.json")
             .Build();
 

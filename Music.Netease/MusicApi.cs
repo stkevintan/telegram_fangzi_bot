@@ -3,7 +3,6 @@ using System;
 using System.Net;
 using System.Linq;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
@@ -44,7 +43,7 @@ namespace Music.Netease
         {
             var rType = typeof(RequestProvider);
             var assembly = Assembly.GetAssembly(rType)!;
-            var list = (from t in assembly.GetExportedTypes() where rType.IsAssignableFrom(t) && !t.IsAbstract select t);
+            var list = from t in assembly.GetExportedTypes() where rType.IsAssignableFrom(t) && !t.IsAbstract select t;
             foreach (var t in list)
             {
                 requestProviders.Add((RequestProvider)Activator.CreateInstance(t, cookieJar)!);
@@ -55,7 +54,7 @@ namespace Music.Netease
             foreach (var rp in requestProviders)
             {
                 var cookies = cookieJar.GetCookies(rp.PublicUri);
-                if (cookies.Count() == 0) { rp.InitCookies(); }
+                rp.InitCookies();
                 // if cookie is expired, clear the login status.
                 var count = (from c in cookies where c.Expired select c).Count();
                 if (count > 0)
@@ -188,12 +187,27 @@ namespace Music.Netease
         /// <summary>
         ///  Get Song's playback url
         /// </summary>
-        public async Task SongUrlAsync(long Id, int br = 999000)
+        public async Task<string> SongUrlAsync(long Id, int br = 999000)
         {
             var path = "/eapi/song/enhance/player/url";
             var body = new Dictionary<string, object> {
                 {"ids", new long[] {Id}},
                 {"br", br}
+            };
+            var ret = await Request(path, body).Into();
+            //"{\"data\":[{\"id\":29307041,\"url\":\"http://m7.music.126.net/20200629092006/68d718f599b26df73c549afcf9eeab0a/ymusic/1f2e/acda/5358/590cf6063232db1b861cff50de5b4bfe.mp3\",\"br\":128000,\"size\":4296831,\"md5\":\"590cf6063232db1b861cff50de5b4bfe\",\"code\":200,\"expi\":1200,\"type\":\"mp3\",\"gain\":0.0,\"fee\":8,\"uf\":null,\"payed\":0,\"flag\":4,\"canExtend\":false,\"freeTrialInfo\":null,\"level\":\"standard\",\"encodeType\":\"mp3\"}],\"code\":200}"
+            return ret;
+        }
+
+        public async Task SongLyricAsync(long Id)
+        {
+            var path = "/eapi/song/lyric";
+            var body = new Dictionary<string, object> {
+                {"os", "pc"},
+                {"id", Id},
+                {"lv", -1},
+                {"kv", -1},
+                {"tv", -1},
             };
             var ret = await Request(path, body).Into();
         }

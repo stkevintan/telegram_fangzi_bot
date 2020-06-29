@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Music.Netease.Library
 {
@@ -25,16 +26,23 @@ namespace Music.Netease.Library
 
         public PCRequestProvider(CookieContainer cookieJar) : base(cookieJar) { }
 
+        Cookie createCookie(string key, string value)
+        {
+            return new Cookie(key, value, "/", ".music.163.com");
+        }
+
+        string? getCookieValue(string key)
+        {
+            var cookies = cookieJar.GetCookies(PublicUri);
+            return cookies.Where(c => c.Name == key).Select(c => c.Value).FirstOrDefault();
+        }
         public override void InitCookies()
         {
-            var cookies = new CookieCollection();
-            cookies.Add(new Cookie("os", "pc"));
-            cookies.Add(new Cookie("osver", "Microsoft-Windows-10-Enterprise-Edition-build-19041-64bit"));
-            cookies.Add(new Cookie("appver", "2.7.1.198242"));
-            cookies.Add(new Cookie("mode", "20NYS3EP0J"));
-            cookies.Add(new Cookie("channel", "netease"));
-            cookies.Add(new Cookie("deviceId", "89D32E91D9266D763069C70FE495CFAAA6A7B06FF875A4A3DD42"));
-            cookieJar.Add(publicUri, cookies);
+            cookieJar.Add(createCookie("os", "pc"));
+            cookieJar.Add(createCookie("osver", "Microsoft-Windows-10-Enterprise-Edition-build-19041-64bit"));
+            cookieJar.Add(createCookie("appver", "2.7.1.198242"));
+            cookieJar.Add(createCookie("mode", "20NYS3EP0J"));
+            cookieJar.Add(createCookie("channel", "netease"));
         }
 
         public override bool Match(string path)
@@ -42,9 +50,7 @@ namespace Music.Netease.Library
             return path.StartsWith("/eapi/");
         }
 
-        /* SampleResult
-        /api/song/lyric-36cd479b6b5-{"os":"pc","id":"4875310","lv":"-1","kv":"-1","tv":"-1","e_r":true,"header":"{\"os\":\"pc\",\"appver\":\"2.7.1.198242\",\"deviceId\":\"89D32E91D9266D763069C70FE495CFAAA6A7B06FF875A4A3DD42\",\"requestId\":\"39489139\",\"clientSign\":\"80:32:53:62:EA:62@@@354344325F453432395F393134335F323832382E@@@@@@09f160ca-67f8-45fa-bf59-1c7d5f1d0f1cafdcbed7a76f98550ab960d515230587\",\"osver\":\"Microsoft-Windows-10-Enterprise-Edition-build-19041-64bit\",\"MUSIC_U\":\"a7b1b33884539e708dbde110717061d192583b5bce3eb09f6bc857199e66f65733a649814e309366\"}"}-36cd479b6b5-4aa30fcdc6c1fb2c6eedccfc90114f0d
-        */
+
         protected override HttpRequestMessage? CreateHttpRequestMessage(string path, Dictionary<string, object>? body, HttpMethod? method)
         {
             if (!Match(path)) return null;
@@ -64,23 +70,31 @@ namespace Music.Netease.Library
             }
             body = body ?? new Dictionary<string, object>();
             var cookies = cookieJar.GetCookies(publicUri);
-            body["header"] = new Dictionary<string, object> {
-                        {"osver", cookies["osver"] },
-                        {"deviceId", cookies["deviceId"]},
-                        {"appver", cookies["appver"]},
-                        {"os", cookies["os"]},
-                        {"requestId", Guid.NewGuid().ToString("N") },
-                        {"MUSIC_A", cookies["MUSIC_A"]},
-                        {"MUSIC_U", cookies["MUSIC_U"]}
-                        // {"clientSign"}
-                    };
-            req.Content = new FormUrlEncodedContent(Encrypt.EncryptPCRequest(req.RequestUri.AbsoluteUri, body));
+            // cookies.
+            var header = new Dictionary<string, object?>
+            {
+                ["osver"] = getCookieValue("osver"),
+                ["deviceId"] = getCookieValue("deviceId"),
+                ["appver"] = getCookieValue("appver"),
+                ["os"] = getCookieValue("os"),
+                ["requestId"] = Guid.NewGuid().ToString("N"),
+                ["MUSIC_A"] = getCookieValue("MUSIC_A"),
+                ["MUSIC_U"] = getCookieValue("MUSIC_U"),
+                ["clientSign"] = getCookieValue("clientSign")
+            };
+            body["header"] = Utility.RemoveNullEntries(header);
+            body["e_r"] = true;
+            req.Content = new FormUrlEncodedContent(Encrypt.EncryptPCRequest(path, body));
             return req;
         }
         public override async Task<string> RequestAsync(string path, Dictionary<string, object>? body, HttpMethod? method)
         {
-            var str = await base.RequestAsync(path, body, method);
-            return Encrypt.DecryptPCResponse(str);
+            var response = await client.SendAsync(CreateHttpRequestMessage(path, body, method));
+            response.EnsureSuccessStatusCode();
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var str = Encrypt.DecryptPCResponse(bytes);
+            EnsureSuccessResultCode(str);
+            return str;
         }
     }
 }

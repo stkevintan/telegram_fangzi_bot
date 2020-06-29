@@ -96,7 +96,13 @@ namespace Music.Netease.Test
             await Context.EnsureLogined();
             // ALiz: 29307041
             //vip: 26127499
-            await Context.Api.SongUrlAsync(26127499);
+            await Context.Api.SongUrlAsync(29307041);
+        }
+
+        [TestMethod]
+        public async Task ShouldSongLyricWork() {
+            await Context.EnsureLogined();
+            await Context.Api.SongLyricAsync(29829683);
         }
     }
 }
