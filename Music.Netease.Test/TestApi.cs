@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Music.Netease.Models;
@@ -93,16 +93,54 @@ namespace Music.Netease.Test
         [TestMethod]
         public async Task ShouldSongUrlWork()
         {
-            await Context.EnsureLogined();
+            // await Context.EnsureLogined();
             // ALiz: 29307041
-            //vip: 26127499
-            await Context.Api.SongUrlAsync(29307041);
+            var ret = await Context.Api.SongUrlAsync(29307041);
+            var ret2 = await Context.Api.SongUrlAsync(29307041, (int)SongQuality.HD);
+            Assert.AreEqual(ret.Quality, ret2.Quality);
+            Assert.IsNull(ret.FreeTrialInfo);
+
+            var ret3 = await Context.Api.SongUrlAsync(new List<long>() { 29307041, 29829683 });
+            Assert.IsTrue(ret3 is List<SongUrl>);
+
+            //vip
+            var ret4 = await Context.Api.SongUrlAsync(26127499);
+            Assert.IsNotNull(ret4.FreeTrialInfo);
+
         }
 
         [TestMethod]
-        public async Task ShouldSongLyricWork() {
-            await Context.EnsureLogined();
-            await Context.Api.SongLyricAsync(29829683);
+        public async Task ShouldSongLyricWork()
+        {
+            // await Context.EnsureLogined();
+            var ret = await Context.Api.SongLyricAsync(29829683);
+        }
+
+        [TestMethod]
+        public async Task ShouldSongDetailWork()
+        {
+            var ret = await Context.Api.SongDetail(29829683);
+            Assert.IsNotNull(ret);
+            var rlist = await Context.Api.SongDetail(new List<long>() { 29829683, 29307041 });
+            Assert.IsTrue(rlist.Count == 2);
+        }
+
+        [TestMethod]
+        public async Task ShouldAlbumDetailWork()
+        {
+            var ret = await Context.Api.AlbumDetail(3086101);
+            Assert.IsTrue(ret.Songs.Count > 0);
+        }
+
+        [TestMethod]
+        public async Task ShouldArtistAlbumWork() {
+            var ret = await Context.Api.ArtistAlbum(15988, 2);
+            Assert.IsTrue(ret.Count > 0);
+        }
+
+        [TestMethod]
+        public async Task ShouldArtistDescWork() {
+            var ret = await Context.Api.ArtistDesc(15988);
         }
     }
 }

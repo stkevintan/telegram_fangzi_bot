@@ -16,7 +16,6 @@ namespace Music.Netease.Test
         public static readonly string Root = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName;
         static Configuration()
         {
-            //"/home/kevin/Projects/Fangzi.Telegram.Bot/Music.Netease.Test/bin/Debug/netcoreapp3.1"
             var conf = new ConfigurationBuilder()
             .SetBasePath(Root)
             .AddJsonFile("appsettings.json")

@@ -16,5 +16,7 @@ namespace Music.Netease.Models
         public string PicUrl { get; set; }
 
         public int AlbumSize { get; set; }
+
+        public List<string> Tns { get; set; }
     }
 }

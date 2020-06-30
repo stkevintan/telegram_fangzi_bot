@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -15,7 +16,8 @@ namespace Music.Netease.Library
                 {
                     OverrideSpecifiedNames = false
                 }
-            }
+            },
+            DateFormatHandling = DateFormatHandling.MicrosoftDateFormat
         };
         public ResponseResolver(Task<string> task)
         {

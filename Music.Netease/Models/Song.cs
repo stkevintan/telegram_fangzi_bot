@@ -23,21 +23,4 @@ namespace Music.Netease.Models
 
         public int Status { get; set; }
     }
-
-    public class SongUrl
-    {
-        public long Id {get;set;}
-
-        public int Br { get; set; }
-
-        // mp3, ...
-        public string EncodeType { get; set; }
-
-
-        public string Level { get; set; }
-        
-
-
-
-    }
 }

@@ -187,19 +187,29 @@ namespace Music.Netease
         /// <summary>
         ///  Get Song's playback url
         /// </summary>
-        public async Task<string> SongUrlAsync(long Id, int br = 999000)
+        public async Task<SongUrl> SongUrlAsync(long Id, int br = 999000)
         {
             var path = "/eapi/song/enhance/player/url";
             var body = new Dictionary<string, object> {
                 {"ids", new long[] {Id}},
                 {"br", br}
             };
-            var ret = await Request(path, body).Into();
-            //"{\"data\":[{\"id\":29307041,\"url\":\"http://m7.music.126.net/20200629092006/68d718f599b26df73c549afcf9eeab0a/ymusic/1f2e/acda/5358/590cf6063232db1b861cff50de5b4bfe.mp3\",\"br\":128000,\"size\":4296831,\"md5\":\"590cf6063232db1b861cff50de5b4bfe\",\"code\":200,\"expi\":1200,\"type\":\"mp3\",\"gain\":0.0,\"fee\":8,\"uf\":null,\"payed\":0,\"flag\":4,\"canExtend\":false,\"freeTrialInfo\":null,\"level\":\"standard\",\"encodeType\":\"mp3\"}],\"code\":200}"
-            return ret;
+            var ret = await Request(path, body).Into(new { Data = default(List<SongUrl>) });
+            return Utility.AssertNotNull(ret?.Data?.FirstOrDefault());
         }
 
-        public async Task SongLyricAsync(long Id)
+        public async Task<List<SongUrl>> SongUrlAsync(List<long> IdList, int br = 999000)
+        {
+            var path = "/eapi/song/enhance/player/url";
+            var body = new Dictionary<string, object> {
+                {"ids", IdList},
+                {"br", br}
+            };
+            var ret = await Request(path, body).Into(new { Data = default(List<SongUrl>) });
+            return Utility.AssertNotNull(ret?.Data);
+        }
+
+        public async Task<SongLyric> SongLyricAsync(long Id)
         {
             var path = "/eapi/song/lyric";
             var body = new Dictionary<string, object> {
@@ -209,7 +219,65 @@ namespace Music.Netease
                 {"kv", -1},
                 {"tv", -1},
             };
+            var ret = await Request(path, body).Into<SongLyric>();
+            return Utility.AssertNotNull(ret);
+        }
+
+        public async Task<SongDetail> SongDetail(long Id)
+        {
+            var path = "/weapi/v3/song/detail";
+            var body = new Dictionary<string, object> {
+                {"c", $"[{{\"id\": {Id}}}]"},
+                {"ids", $"[{Id}]"}
+            };
+            var ret = await Request(path, body).Into(new { Songs = default(List<SongDetail>) });
+            return Utility.AssertNotNull(ret?.Songs?.FirstOrDefault());
+        }
+
+        public async Task<List<SongDetail>> SongDetail(List<long> Ids)
+        {
+            var path = "/weapi/v3/song/detail";
+            var body = new Dictionary<string, object> {
+                {"c", $"[{String.Join(',', Ids.Select(id => $"{{\"id\": {id}}}"))}]"},
+                {"ids", $"[{String.Join(',', Ids)}]"}
+            };
+            var ret = await Request(path, body).Into(new { Songs = default(List<SongDetail>) });
+            return Utility.AssertNotNull(ret?.Songs);
+        }
+
+        public async Task<Album> AlbumDetail(long Id)
+        {
+            var path = $"/weapi/v1/album/{Id}";
+            var ret = await Request(path).Into(new { Album = default(Album), Songs = default(List<SongDetail>) });
+            if (ret?.Album != null)
+            {
+                ret.Album.Songs = ret.Songs ?? new List<SongDetail>();
+                return ret.Album;
+            }
+            throw new NullReferenceException();
+        }
+
+        public async Task<List<Album>> ArtistAlbum(long Id, int limit = 30, int offset = 0)
+        {
+            var path = $"/weapi/artist/albums/{Id}";
+            var body = new Dictionary<string, object>
+            {
+                ["limit"] = limit,
+                ["offset"] = offset,
+                ["total"] = true
+            };
+            var ret = await Request(path, body).Into(new { HotAlbums = default(List<Album>) });
+            return Utility.AssertNotNull(ret?.HotAlbums);
+        }
+
+        public async Task<string> ArtistDesc(long Id)
+        {
+            var path = $"/weapi/artist/introduction";
+            var body = new Dictionary<string, object> {
+                {"id", Id}
+            };
             var ret = await Request(path, body).Into();
+            return Utility.AssertNotNull(ret);
         }
         #endregion API
     }
