@@ -1,13 +1,12 @@
 using System.Linq;
 using System.Collections.Generic;
-using Microsoft.Extensions.DependencyInjection;
 using System.Text;
 using System;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Newtonsoft.Json;
 using Telegram.Bot;
-using Telegram.Bot.Types;
+using Fangzi.Bot.Interfaces;
 
 namespace Fangzi.Bot.Commands
 {
@@ -26,7 +25,7 @@ namespace Fangzi.Bot.Commands
         {
             if (String.IsNullOrWhiteSpace(text))
             {
-                return _config.DefaultReply;
+                return "???";
             }
 
             var content = JsonConvert.SerializeObject(new
@@ -41,7 +40,7 @@ namespace Fangzi.Bot.Commands
                 },
                 userInfo = new
                 {
-                    apiKey = _config.TulingApiKey,
+                    // apiKey = _config.TulingApiKey,
                     userId = Session.Message.From.Id
                 }
             });

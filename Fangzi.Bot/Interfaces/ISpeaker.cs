@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Fangzi.Bot.Extensions;
 
-namespace Fangzi.Bot
+namespace Fangzi.Bot.Interfaces
 {
     public interface ISpeaker
     {

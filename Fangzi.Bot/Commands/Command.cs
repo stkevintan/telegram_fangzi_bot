@@ -1,7 +1,6 @@
-using System.Windows.Input;
-using System;
 using System.Threading.Tasks;
 using Telegram.Bot.Types;
+using Fangzi.Bot.Interfaces;
 
 namespace Fangzi.Bot.Commands
 {

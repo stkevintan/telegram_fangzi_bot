@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Telegram.Bot;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Fangzi.Bot.Services;
+using Fangzi.Bot.Interfaces;
 using Fangzi.Bot.Routers;
 using Fangzi.Bot.Extensions;
 

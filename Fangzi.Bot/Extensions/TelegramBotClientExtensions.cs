@@ -1,4 +1,3 @@
-using System;
 using System.Text.RegularExpressions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -14,16 +13,16 @@ namespace Fangzi.Bot.Extensions
             bot.OnMessage += router.BotOnMessageReceived;
         }
 
-        public static Tuple<string, string> Split(this Message message)
+        public static (string, string) Split(this Message message)
         {
             var match = regex.Match(message.Text);
             if (match.Success)
             {
                 string key = match.Groups[1].Value;
                 string content = (match.Groups[2]?.Value ?? "").Trim();
-                return Tuple.Create(key, content);
+                return (key, content);
             }
-            return Tuple.Create<string,string>(null, message.Text);
+            return (null, message.Text);
         }
     }
 }

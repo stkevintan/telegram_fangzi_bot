@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.CognitiveServices.Speech;
 using Fangzi.Bot.Extensions;
+using Fangzi.Bot.Interfaces;
 
 namespace Fangzi.Bot.Services
 {

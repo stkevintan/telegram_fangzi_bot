@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Fangzi.Bot.Extensions;
 using Fangzi.Bot.Services;
+using Fangzi.Bot.Interfaces;
 
 namespace Fangzi.Bot
 {
@@ -19,7 +20,7 @@ namespace Fangzi.Bot
                 services.AddSingleton<IAppConfig, AppConfigService>();
                 services.UseTelegramBot();
                 services.AddSingleton<ISpeaker, SpeakerService>();
-                services.UseRouter("TuLing");
+                services.UseRouter();
                 services.AddHostedService<Startup>();
             });
     }

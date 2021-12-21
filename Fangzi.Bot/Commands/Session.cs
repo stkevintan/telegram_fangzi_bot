@@ -1,5 +1,6 @@
 
 using Telegram.Bot.Types;
+using Fangzi.Bot.Interfaces;
 
 namespace Fangzi.Bot.Commands
 {

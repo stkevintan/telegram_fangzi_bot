@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Fangzi.Bot.Routers;
 using System.Linq;
 using Fangzi.Bot.Commands;
+using Fangzi.Bot.Interfaces;
 
 namespace Fangzi.Bot.Extensions
 {
@@ -18,7 +19,7 @@ namespace Fangzi.Bot.Extensions
             );
         }
 
-        public static void UseRouter(this IServiceCollection services, string defaultRouter)
+        public static void UseRouter(this IServiceCollection services)
         {
             var assembly = Assembly.GetEntryAssembly();
             var ICommandType = typeof(ICommand);
@@ -30,8 +31,7 @@ namespace Fangzi.Bot.Extensions
 
             services.AddSingleton<Router>((container) =>
             {
-                return new Router(container.GetService<ILogger<Router>>(), container.GetServices<ICommand>())
-                { DefaultCommandName = defaultRouter };
+                return new Router(container.GetService<ILogger<Router>>(), container.GetServices<ICommand>());
             });
         }
     }
