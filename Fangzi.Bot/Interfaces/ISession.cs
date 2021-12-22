@@ -1,15 +1,17 @@
 using Telegram.Bot.Types;
 
-namespace Fangzi.Bot.Interfaces {
-    public interface ISession {
-        Message Message { get; }
+namespace Fangzi.Bot.Interfaces
+{
+	public interface ISession
+	{
+		Message Message { get; }
 
-        Chat Chat => Message.Chat;
+		Chat Chat => Message.Chat;
 
-        long Id => Chat.Id;
+		long Id => Chat.Id;
 
-        string? Command { get; }
+		string? Command { get; }
 
-        string Content { get; }
-    }
+		string Content { get; }
+	}
 }

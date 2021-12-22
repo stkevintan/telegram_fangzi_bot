@@ -1,17 +1,18 @@
 using System.Threading.Tasks;
 using Fangzi.Bot.Interfaces;
+using Telegram.Bot;
 
 namespace Fangzi.Bot.Libraries
 {
-    public abstract class Command<T> : ICommand where T : Command<T>
+    // TODO: remove it.
+    public abstract class Command : ICommand
     {
-        public string CommandName { get; private set; }
+        protected ITelegramBotClient _bot { get; set; }
 
-        public Command()
-        {
-            CommandName = typeof(T).Name.Replace("Command", "").ToLower();
+        public Command(ITelegramBotClient bot) {
+            _bot = bot;
         }
 
-		public abstract Task RunAsync(ISession session);
+        public abstract Task RunAsync(ISession session);
 	}
 }

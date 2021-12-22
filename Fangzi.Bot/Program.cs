@@ -18,6 +18,7 @@ namespace Fangzi.Bot
             .ConfigureServices((context, services) =>
             {
                 services.AddSingleton<IAppConfig, AppConfigService>();
+                services.AddSingleton<RateLimitService>();
                 services.UseTelegramBot();
                 services.AddSingleton<ISpeaker, SpeakerService>();
                 services.UseRouter();

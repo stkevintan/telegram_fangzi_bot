@@ -1,6 +1,5 @@
 using Telegram.Bot;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using System;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -8,61 +7,22 @@ using System.IO;
 using System.Linq;
 using Fangzi.Bot.Libraries;
 using Fangzi.Bot.Interfaces;
+using Fangzi.Bot.Attributes;
 
 namespace Fangzi.Bot.Commands
 {
-	public class ChatStatus
+	[Command("avatar", Description = "set the photo replied as group's avatar")]
+	[RateLimited()]
+	public class AvatarCommand : Command
 	{
-		public bool running { set; get; }
-		public DateTime? endTime { set; get; }
-	}
-
-	public class AvatarCommand : Command<AvatarCommand>
-	{
-		private Dictionary<long, ChatStatus> _chats = new Dictionary<long, ChatStatus>();
-		private ITelegramBotClient _bot { get; set; }
-		public AvatarCommand(ITelegramBotClient bot)
+		public AvatarCommand(ITelegramBotClient bot) : base(bot)
 		{
-			_bot = bot;
 		}
+
 		public async override Task RunAsync(ISession Session)
 		{
 			var reply = Session.Message.ReplyToMessage;
-			if (!checkChat(Session.Id))
-			{
-				await _bot.SendTextMessageAsync(
-					chatId: Session.Id,
-					text: "贤者模式"
-				);
-			}
-
-			try
-			{
-				await getImageAsync(reply);
-			}
-			finally
-			{
-				_chats[Session.Id].running = false;
-				_chats[Session.Id].endTime = DateTime.Now;
-			}
-		}
-
-		private bool checkChat(long Id)
-		{
-			if (!_chats.ContainsKey(Id))
-			{
-				_chats[Id] = new ChatStatus { running = true };
-				return true;
-			}
-			if (_chats[Id].running)
-			{
-				return false;
-			}
-			if (_chats[Id].endTime is DateTime endTime && (DateTime.Now - endTime).TotalSeconds <= 5)
-			{
-				return false;
-			}
-			return true;
+			await getImageAsync(reply);
 		}
 
 		private async Task<string?> getImageAsync(Message reply)
@@ -94,7 +54,5 @@ namespace Fangzi.Bot.Commands
 			System.IO.File.Delete(filePath);
 			return null;
 		}
-
-		
 	}
 }
