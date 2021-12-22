@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types.Enums;
 using Fangzi.Bot.Commands;
 using Fangzi.Bot.Interfaces;
+using System;
 
 namespace Fangzi.Bot.Routers
 {
@@ -36,11 +37,14 @@ namespace Fangzi.Bot.Routers
             }
             _logger.LogTrace("Received a text message in chat {0};", message.Chat.Id);
             (string key, string content) = message.Split();
-            key ??= "echo";
             var cmd = _commands.FirstOrDefault(c => c.CommandName == key);
             if (cmd != null)
             {
-                await cmd.Create(new Session(message)).Run(content);
+                try {
+                    await cmd.Create(new Session(message)).Run(content);
+                }catch(Exception ex) {
+                    Console.WriteLine(ex.ToString());
+                }
                 return;
             }
         }
