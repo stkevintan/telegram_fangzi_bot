@@ -30,10 +30,11 @@ namespace Fangzi.Bot.Services
             _speechConfig = SpeechConfig.FromSubscription(config.SpeechSubscription, config.SpeechRegion);
             _speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Audio24Khz160KBitRateMonoMp3);
         }
-        public async Task<AudioStream> SpeakAsync(string text, Boolean useNeural = false)
+        public async Task<AudioStream?> SpeakAsync(string text, string voiceKind = "zh-CN-XiaoxiaoNeural")
         {
             using var synthesizer = new SpeechSynthesizer(_speechConfig, null);
-            var ssml = String.Format(SSML_TEMPLATE, text, useNeural ? "zh-CN-XiaoxiaoNeural" : "zh-CN-Yaoyao-Apollo");
+            // https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/language-support#prebuilt-neural-voices
+            var ssml = String.Format(SSML_TEMPLATE, text, voiceKind);
             using var result = await synthesizer.SpeakSsmlAsync(ssml);
 
             if (result.Reason == ResultReason.SynthesizingAudioCompleted)

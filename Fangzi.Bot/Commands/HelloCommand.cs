@@ -1,5 +1,7 @@
 using Telegram.Bot;
 using System.Threading.Tasks;
+using Fangzi.Bot.Interfaces;
+using Fangzi.Bot.Libraries;
 
 namespace Fangzi.Bot.Commands
 {
@@ -11,10 +13,10 @@ namespace Fangzi.Bot.Commands
         {
             _bot = bot;
         }
-        public override async Task Run(string content)
+        public override async Task RunAsync(ISession Session)
         {
             await _bot.SendTextMessageAsync(
-                chatId: Session.Message.Chat,
+                chatId: Session.Id,
                 text: "你好哇~"
             );
         }

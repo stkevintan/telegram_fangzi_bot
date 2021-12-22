@@ -1,13 +1,11 @@
 using System.Threading.Tasks;
-using Telegram.Bot.Types;
+using Fangzi.Bot.Libraries;
 
 namespace Fangzi.Bot.Interfaces
 {
     public interface ICommand
     {
         string CommandName { get; }
-        ISession Session { get; set; }
-        ICommand Create(ISession session);
-        Task Run(string content);
-    }
+        Task RunAsync(ISession session);
+	}
 }

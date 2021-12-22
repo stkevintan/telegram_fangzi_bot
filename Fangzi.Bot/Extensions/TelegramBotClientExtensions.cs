@@ -13,7 +13,7 @@ namespace Fangzi.Bot.Extensions
             bot.OnMessage += router.BotOnMessageReceived;
         }
 
-        public static (string, string) Split(this Message message)
+        public static (string?, string) Split(this Message message)
         {
             var match = regex.Match(message.Text);
             if (match.Success)

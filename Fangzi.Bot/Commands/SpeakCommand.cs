@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Fangzi.Bot.Interfaces;
+using Fangzi.Bot.Libraries;
 
 namespace Fangzi.Bot.Commands
 {
@@ -17,24 +18,24 @@ namespace Fangzi.Bot.Commands
             _bot = bot;
             _speaker = speaker;
         }
-        public override async Task Run(string content)
+        public override async Task RunAsync(ISession Session)
         {
-            if (String.IsNullOrWhiteSpace(content))
+            if (String.IsNullOrWhiteSpace(Session.Content))
             {
                 await _bot.SendTextMessageAsync(chatId: Session.Message.Chat, text: "你想让我说神马来着？");
                 return;
             }
-            var user = Session.Message.Chat.Username;
-            using var stream = await _speaker.SpeakAsync(content, _config.MasterUsers.Contains(user));
+            var user = Session.Chat.Username;
+            using var stream = await _speaker.SpeakAsync(Session.Content);
             if (stream == null)
             {
-                await _bot.SendTextMessageAsync(chatId: Session.Message.Chat, text: "好像什么地方坏掉了 QaQ");
+                await _bot.SendTextMessageAsync(chatId: Session.Id, text: "好像什么地方坏掉了 QaQ");
                 return;
             }
 
-            var title = content.Substring(0, Math.Min(content.Length, 8));
+            var title = Session.Content.Substring(0, Math.Min(Session.Content.Length, 8));
             await _bot.SendAudioAsync(
-                chatId: Session.Message.Chat,
+                chatId: Session.Id,
                 audio: stream,
                 title: title ?? "audio",
                 performer: "fangzi",

@@ -23,9 +23,9 @@
             "request": "launch",
             "preLaunchTask": "build:Fangzi.Bot",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/Fangzi.Bot/bin/Debug/netcoreapp3.1/Fangzi.Bot.dll",
+            "program": "${workspaceFolder}/Fangzi.Bot/bin/Debug/net6.0/Fangzi.Bot.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/Fangzi.Bot",
+            "cwd": "${workspaceFolder}",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",
             "stopAtEntry": false

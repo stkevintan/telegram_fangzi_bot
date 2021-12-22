@@ -5,6 +5,6 @@ namespace Fangzi.Bot.Interfaces
 {
     public interface ISpeaker
     {
-        public Task<AudioStream> SpeakAsync(string text, bool useNeural);
+        public Task<AudioStream?> SpeakAsync(string text, string voiceKind = "zh-CN-XiaoxiaoNeural");
     }
 }
