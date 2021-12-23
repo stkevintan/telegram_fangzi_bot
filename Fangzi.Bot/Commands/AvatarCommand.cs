@@ -22,7 +22,11 @@ namespace Fangzi.Bot.Commands
 		public async override Task RunAsync(ISession Session)
 		{
 			var reply = Session.Message.ReplyToMessage;
-			await getImageAsync(reply);
+			await (reply switch
+			{
+				Message => getImageAsync(reply),
+				_ => Task.CompletedTask
+			});
 		}
 
 		private async Task<string?> getImageAsync(Message reply)
@@ -32,8 +36,7 @@ namespace Fangzi.Bot.Commands
 				return "请回复一个图片";
 			}
 			// var photo = reply.Photo[0];
-			var photo = reply.Photo.OrderByDescending(p => p.FileSize).First();
-			Console.WriteLine($"{photo.Height} {photo.Width}");
+			var photo = reply.Photo?.OrderByDescending(p => p.FileSize).First();
 			if (photo.FileSize > 15 * Math.Pow(1024, 2))
 			{
 				return "不要啊啊啊啊，太大了！！！";
@@ -47,7 +50,6 @@ namespace Fangzi.Bot.Commands
 			using (var stream = System.IO.File.OpenRead(filePath))
 			{
 				await _bot.SetChatPhotoAsync(reply.Chat.Id, stream);
-				await _bot.SetChatDescriptionAsync(reply.Chat.Id, DateTime.Now + "@test");
 			}
 			Console.WriteLine("Done");
 

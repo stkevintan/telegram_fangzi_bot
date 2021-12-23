@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Collections.Generic;
-using Telegram.Bot.Args;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types.Enums;
 using Fangzi.Bot.Interfaces;
@@ -10,10 +9,14 @@ using Fangzi.Bot.Attributes;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Fangzi.Bot.Services;
+using Telegram.Bot.Types;
+using Telegram.Bot.Extensions.Polling;
+using System.Threading;
+using Telegram.Bot.Exceptions;
 
 namespace Fangzi.Bot.Routers
 {
-	public class Router
+	public class Router : IUpdateHandler
 	{
 		IEnumerable<ICommand> _commands { get; set; }
 		ILogger<Router> _logger;
@@ -36,15 +39,49 @@ namespace Fangzi.Bot.Routers
 			return this;
 		}
 
-		public async void BotOnMessageReceived(object sender, MessageEventArgs e)
+		public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
 		{
-			var message = e.Message;
-			if (message.Type != MessageType.Text)
+			var handler = update.Type switch
 			{
-				_logger.LogWarning("Message Type {0} not supported", message.Type);
-				return;
+				UpdateType.Message => MessageReceived(update.Message!),
+				UpdateType.EditedMessage => MessageReceived(update.EditedMessage!),
+				_ => Task.CompletedTask
+			};
+			try
+			{
+				await handler;
 			}
-			_logger.LogTrace("Received a text message in chat {0};", message.Chat.Id);
+			catch (Exception ex)
+			{
+				await HandleErrorAsync(botClient, ex, cancellationToken);
+			}
+		}
+
+		public Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+		{
+			var ErrorMessage = exception switch
+			{
+				ApiRequestException apiRequestException => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+				_ => exception.ToString()
+			};
+			_logger.LogError(ErrorMessage);
+			return Task.CompletedTask;
+		}
+
+		public async Task MessageReceived(Message message)
+		{
+			_logger.LogTrace("Received a {1} message in chat {0};", message.Chat.Id, message.Type);
+
+			var handler = message.Type switch
+			{
+				MessageType.Text => TextMessageReceived(message),
+				_ => Task.CompletedTask
+			};
+			await handler;
+		}
+
+		public async Task TextMessageReceived(Message message)
+		{
 			var session = new Session(message);
 			var cmd = findCommand(session.Command);
 			if (cmd is ICommand c)
@@ -87,7 +124,7 @@ namespace Fangzi.Bot.Routers
 				{
 					if (attr is RequireRoleAttribute requireRole)
 					{
-						if (requireRole.Role == "Admin" && !isAdmin(session.Message.From.Username))
+						if (requireRole.Role == "Admin" && !isAdmin(session.Message.From!.Username!))
 						{
 							await _bot.SendTextMessageAsync(chatId: session.Id, text: "只有主人才能使用这条命令哦~");
 							return;

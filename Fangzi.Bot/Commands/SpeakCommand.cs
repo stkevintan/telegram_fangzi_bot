@@ -35,7 +35,7 @@ namespace Fangzi.Bot.Commands
 			var title = Session.Content.Substring(0, Math.Min(Session.Content.Length, 8));
 			await _bot.SendAudioAsync(
 				chatId: Session.Id,
-				audio: stream,
+				audio: stream!,
 				title: title ?? "audio",
 				performer: "fangzi",
 				replyToMessageId: Session.Message.MessageId

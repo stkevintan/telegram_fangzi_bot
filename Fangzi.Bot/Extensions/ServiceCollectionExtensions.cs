@@ -14,7 +14,7 @@ namespace Fangzi.Bot.Extensions
 		public static void UseTelegramBot(this IServiceCollection services)
 		{
 			services.AddSingleton<ITelegramBotClient>(container =>
-				new TelegramBotClient(container.GetService<IAppConfig>()?.TelegramAccessToken)
+				new TelegramBotClient(container.GetService<IAppConfig>()!.TelegramAccessToken)
 			);
 		}
 
