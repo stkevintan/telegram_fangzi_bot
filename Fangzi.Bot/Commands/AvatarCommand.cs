@@ -1,13 +1,12 @@
 using Telegram.Bot;
 using System.Threading.Tasks;
-using System;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using System.IO;
-using System.Linq;
 using Fangzi.Bot.Libraries;
 using Fangzi.Bot.Interfaces;
 using Fangzi.Bot.Attributes;
+using Fangzi.Bot.Services;
+using Microsoft.Extensions.Logging;
+using Telegram.Bot.Exceptions;
 
 namespace Fangzi.Bot.Commands
 {
@@ -15,46 +14,49 @@ namespace Fangzi.Bot.Commands
 	[RateLimited()]
 	public class AvatarCommand : Command
 	{
-		public AvatarCommand(ITelegramBotClient bot) : base(bot)
+		ILogger<AvatarCommand> _logger;
+		AvatarService _service;
+		public AvatarCommand(ITelegramBotClient bot, AvatarService service, ILogger<AvatarCommand> logger) : base(bot)
 		{
+			_logger = logger;
+			_service = service;
 		}
 
 		public async override Task RunAsync(ISession Session)
 		{
-			var reply = Session.Message.ReplyToMessage;
-			await (reply switch
+			var replyMessage = Session.Message.ReplyToMessage;
+			var resultTask = replyMessage?.Type switch
 			{
-				Message => getImageAsync(reply),
-				_ => Task.CompletedTask
-			});
-		}
-
-		private async Task<string?> getImageAsync(Message reply)
-		{
-			if (null == reply || reply.Type != MessageType.Photo)
-			{
-				return "请回复一个图片";
-			}
-			// var photo = reply.Photo[0];
-			var photo = reply.Photo?.OrderByDescending(p => p.FileSize).First();
-			if (photo.FileSize > 15 * Math.Pow(1024, 2))
-			{
-				return "不要啊啊啊啊，太大了！！！";
-			}
-			var filePath = Path.Join(Path.GetTempPath(), $"image{reply.Chat.Id}.tmp");
-			Console.WriteLine(filePath);
-			using (var stream = System.IO.File.Create(filePath))
-			{
-				await _bot.GetInfoAndDownloadFileAsync(photo.FileId, stream);
-			}
-			using (var stream = System.IO.File.OpenRead(filePath))
-			{
-				await _bot.SetChatPhotoAsync(reply.Chat.Id, stream);
-			}
-			Console.WriteLine("Done");
-
-			System.IO.File.Delete(filePath);
-			return null;
+				MessageType.Photo => _service.FromPhotoAsync(replyMessage),
+				MessageType.Sticker => _service.FromStickerAsync(replyMessage),
+				_ => Task.FromResult(new AvatarResult { ErrorMessage = $"不支持的消息类型: {replyMessage?.Type}" })
+			};
+			var result = await resultTask;
+			await result.Match(
+				async (error) =>
+				{
+					await _bot.SendTextMessageAsync
+					(
+						chatId: Session.Id,
+						error,
+						replyToMessageId: Session.Message.MessageId
+					);
+				},
+				async (fileLocation) =>
+				{
+					try
+					{
+						using (var stream = System.IO.File.OpenRead(result.FileLocation!))
+						{
+							await _bot.SetChatPhotoAsync(replyMessage!.Chat.Id, stream);
+						}
+					}
+					finally
+					{
+						System.IO.File.Delete(result.FileLocation!);
+					}
+				}
+			);
 		}
 	}
 }

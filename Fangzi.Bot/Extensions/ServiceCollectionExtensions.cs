@@ -1,11 +1,11 @@
 using System.Reflection;
 using Telegram.Bot;
 using Microsoft.Extensions.DependencyInjection;
-using Fangzi.Bot.Routers;
 using System.Linq;
 using Fangzi.Bot.Interfaces;
 using Fangzi.Bot.Libraries;
 using Fangzi.Bot.Attributes;
+using Fangzi.Bot.Services;
 
 namespace Fangzi.Bot.Extensions
 {
@@ -14,12 +14,8 @@ namespace Fangzi.Bot.Extensions
 		public static void UseTelegramBot(this IServiceCollection services)
 		{
 			services.AddSingleton<ITelegramBotClient>(container =>
-				new TelegramBotClient(container.GetService<IAppConfig>()!.TelegramAccessToken)
+				new TelegramBotClient(container.GetService<BotConfiguration>()!.TelegramAccessToken)
 			);
-		}
-
-		public static void UseRouter(this IServiceCollection services)
-		{
 			var assembly = Assembly.GetEntryAssembly();
 			Assert.NotNull(assembly);
 			var ICommandType = typeof(ICommand);
@@ -33,7 +29,7 @@ namespace Fangzi.Bot.Extensions
 				return false;
 			}).ToList();
 			list.ForEach(c => services.AddSingleton(ICommandType, c));
-			services.AddSingleton<Router>();
+			services.AddSingleton<IBotService, TelegramBotService>();
 		}
 	}
 }

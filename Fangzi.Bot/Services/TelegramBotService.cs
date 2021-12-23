@@ -4,27 +4,31 @@ using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types.Enums;
 using Fangzi.Bot.Interfaces;
 using System;
-using Fangzi.Bot.Libraries;
 using Fangzi.Bot.Attributes;
 using System.Threading.Tasks;
 using Telegram.Bot;
-using Fangzi.Bot.Services;
 using Telegram.Bot.Types;
 using Telegram.Bot.Extensions.Polling;
 using System.Threading;
 using Telegram.Bot.Exceptions;
+using Fangzi.Bot.Libraries;
 
-namespace Fangzi.Bot.Routers
+namespace Fangzi.Bot.Services
 {
-	public class Router : IUpdateHandler
+	public class TelegramBotService : IUpdateHandler, IBotService
 	{
 		IEnumerable<ICommand> _commands { get; set; }
-		ILogger<Router> _logger;
-		IAppConfig _config;
+		ILogger<TelegramBotService> _logger;
+		BotConfiguration _config;
 		ITelegramBotClient _bot;
 		RateLimitService _rls;
 
-		public Router(ILogger<Router> logger, IAppConfig config, ITelegramBotClient bot, RateLimitService rls, IEnumerable<ICommand> commands)
+		public TelegramBotService(
+			ILogger<TelegramBotService> logger,
+			BotConfiguration config,
+			ITelegramBotClient bot,
+			RateLimitService rls,
+			IEnumerable<ICommand> commands)
 		{
 			_logger = logger;
 			_commands = commands;
@@ -33,7 +37,7 @@ namespace Fangzi.Bot.Routers
 			_bot = bot;
 		}
 
-		public Router AddCommand(ICommand command)
+		public TelegramBotService AddCommand(ICommand command)
 		{
 			_commands.Append(command);
 			return this;
@@ -82,7 +86,7 @@ namespace Fangzi.Bot.Routers
 
 		public async Task TextMessageReceived(Message message)
 		{
-			var session = new Session(message);
+			ISession session = new Session(message);
 			var cmd = findCommand(session.Command);
 			if (cmd is ICommand c)
 			{
@@ -92,6 +96,7 @@ namespace Fangzi.Bot.Routers
 				}
 				catch (Exception ex)
 				{
+					await _bot.SendTextMessageAsync(session.Id, "好像什么地方坏掉了QaQ");
 					_logger.LogTrace(ex, $"Failed to run command {session.Command ?? "<Empty>"}");
 				}
 			}
@@ -133,7 +138,7 @@ namespace Fangzi.Bot.Routers
 
 					if (attr is RateLimitedAttribute rateLimited)
 					{
-						idleSec = rateLimited.Seconds ?? _config.RateIdleSec;
+						idleSec = rateLimited.Seconds ?? _config.CooldownSec;
 						(bool ok, string err) = _rls.BeforeCheck(session.Id);
 						if (!ok)
 						{
@@ -157,6 +162,11 @@ namespace Fangzi.Bot.Routers
 		bool isAdmin(string username)
 		{
 			return _config.AdminUsers.Contains(username);
+		}
+
+		public void Run(CancellationToken token)
+		{
+			_bot.StartReceiving(this, cancellationToken: token);
 		}
 	}
 }

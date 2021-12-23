@@ -17,11 +17,11 @@ namespace Fangzi.Bot
             Host.CreateDefaultBuilder(args)
             .ConfigureServices((context, services) =>
             {
-                services.AddSingleton<IAppConfig, AppConfigService>();
+                services.AddSingleton<BotConfiguration>();
+                services.AddSingleton<AvatarService>();
                 services.AddSingleton<RateLimitService>();
-                services.UseTelegramBot();
                 services.AddSingleton<ISpeaker, SpeakerService>();
-                services.UseRouter();
+                services.UseTelegramBot();
                 services.AddHostedService<Startup>();
             });
     }

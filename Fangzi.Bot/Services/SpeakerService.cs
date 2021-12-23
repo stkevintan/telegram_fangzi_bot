@@ -21,10 +21,10 @@ namespace Fangzi.Bot.Services
                 </mstts:express-as>
             </voice>
         </speak>";
-        readonly IAppConfig _config;
+        readonly BotConfiguration _config;
 
         readonly SpeechConfig _speechConfig;
-        public SpeakerService(IAppConfig config)
+        public SpeakerService(BotConfiguration config)
         {
             _config = config;
             _speechConfig = SpeechConfig.FromSubscription(config.SpeechSubscription, config.SpeechRegion);

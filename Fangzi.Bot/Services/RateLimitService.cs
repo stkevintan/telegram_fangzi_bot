@@ -29,7 +29,7 @@ namespace Fangzi.Bot.Services
 			var now = DateTime.Now;
 			if (_chats[Id].FreeAt is DateTime freeAt && freeAt > now)
 			{
-				return (false, $"让芳子酱休息{(int)(freeAt - now).TotalSeconds}秒吧~");
+				return (false, $"技能CD中，让芳子酱休息{(int)(freeAt - now).TotalSeconds}秒吧~");
 			}
 			_chats[Id].Running = true;
 			return (true, string.Empty);
