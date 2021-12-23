@@ -4,6 +4,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot;
 using System.Linq;
 using System.IO;
+using OpenCvSharp;
 
 namespace Fangzi.Bot.Services
 {
@@ -77,9 +78,29 @@ namespace Fangzi.Bot.Services
 			{
 				await _bot.GetInfoAndDownloadFileAsync(FileId, stream);
 			}
+			resize(FileLocation);
 			return FileLocation;
 		}
 
-		
+		void resize(string FileLocation)
+		{
+			using var src = new Mat(FileLocation, ImreadModes.Unchanged);
+			using var dst = new Mat();
+			var rows = src.Rows;
+			var cols = src.Cols;
+			var channels = src.Channels;
+			var scaleFactor = 2048.0 / Math.Min(rows, cols);
+			Cv2.Resize(
+				src, 
+				dst,
+				new Size(rows * scaleFactor, cols * scaleFactor), 
+				fx: scaleFactor, 
+				fy: scaleFactor, 
+				interpolation: InterpolationFlags.Area
+			);
+			dst.ImWrite(FileLocation);
+		}
+
+
 	}
 }
