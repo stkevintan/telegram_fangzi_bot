@@ -27,10 +27,20 @@ namespace Fangzi.Bot.Commands
 			var replyMessage = Session.Message.ReplyToMessage;
 			var resultTask = replyMessage?.Type switch
 			{
-				MessageType.Photo => _service.FromPhotoAsync(replyMessage),
-				MessageType.Sticker => _service.FromStickerAsync(replyMessage),
-				_ => Task.FromResult(new AvatarResult { ErrorMessage = $"不支持的消息类型: {replyMessage?.Type}" })
+				MessageType.Photo => _service.FromPhotoAsync(Session),
+				MessageType.Sticker => _service.FromStickerAsync(Session),
+				MessageType.Document => _service.FromDocumentAsync(Session),
+				_ => null
 			};
+			if (resultTask is null) {
+				_logger.LogWarning($"Unsupported message type: {replyMessage?.Type}.");
+				await _bot.SendTextMessageAsync(
+					Session.Id,
+					"这是神马消息？？？",
+					replyToMessageId: Session.Message.MessageId
+				);
+				return;
+			}
 			var result = await resultTask;
 			await result.Match(
 				async (error) =>
