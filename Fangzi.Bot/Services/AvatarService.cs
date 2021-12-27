@@ -10,19 +10,58 @@ namespace Fangzi.Bot.Services
 		readonly string _mimeType;
 		Mat _src;
 
-        string MimeType => _mimeType;
+		string MimeType => _mimeType;
 
-		public static AvatarService? fromStream(Stream stream)
+		public static AvatarService? FromStream(Stream stream)
 		{
 			stream.Position = 0;
 			var mimeType = MimeGuesser.GuessMimeType(stream);
-			if (!CheckMimeType(mimeType))
+			stream.Position = 0;
+			var tmp = mimeType.Split("/", 2);
+			Mat? src = (tmp[0], tmp[1]) switch
 			{
+				("image", "gif") or ("video", _) => MatFromVideo(stream),
+				("image", _) => Mat.FromStream(stream, ImreadModes.Unchanged),
+				_ => null
+			};
+			return src is null ? null : new AvatarService(src, mimeType);
+		}
+
+		static Mat? MatFromVideo(Stream stream)
+		{
+			stream.Position = 0;
+			// save it to tmp file
+			var tmpLoc = Path.Join(Path.GetTempPath(), $"video-{System.Guid.NewGuid()}.tmp");
+			using (var fs = File.Create(tmpLoc))
+			{
+				stream.CopyTo(fs);
+			}
+			var error = true;
+			var src = new Mat();
+			try
+			{
+				using var capture = new VideoCapture(tmpLoc);
+				var count = Convert.ToInt32(capture.Get(VideoCaptureProperties.FrameCount));
+				var rnd = new Random();
+				var frameIndex = rnd.Next(count);
+				capture.Set(VideoCaptureProperties.PosFrames, frameIndex);
+
+				if (capture.Read(src))
+				{
+					error = false;
+					return src;
+				}
 				return null;
 			}
-			stream.Position = 0;
-			var src = Mat.FromStream(stream, ImreadModes.Unchanged);
-			return new AvatarService(src, mimeType);
+			finally
+			{
+				if (error)
+				{
+					src.Dispose();
+				}
+				stream.Position = 0;
+				File.Delete(tmpLoc);
+			}
 		}
 
 		AvatarService(Mat src, string mimeType)
@@ -32,16 +71,6 @@ namespace Fangzi.Bot.Services
 			_src = src;
 		}
 
-
-		public static bool CheckMimeType(in string mimeType)
-		{
-			return mimeType.Split("/")[0] switch
-			{
-				"image" => true,
-				"video" => true,
-				_ => false
-			};
-		}
 
 		public void Dispose()
 		{
@@ -118,6 +147,14 @@ namespace Fangzi.Bot.Services
 
 			return updateSrc(dst);
 		}
+
+		// public AvatarService CaptureVideo()
+		// {
+		// 	if (MimeType == "image/gif" || MimeType.Contains("video"))
+		// 	{
+		// 		var capture = new VideoCapture();
+		// 	}
+		// }
 
 		public Stream toStream()
 		{

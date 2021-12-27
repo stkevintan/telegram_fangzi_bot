@@ -72,7 +72,7 @@ namespace Fangzi.Bot.Commands
 
 			using var stream = new MemoryStream();
 			await _bot.GetInfoAndDownloadFileAsync(file.FileId, stream);
-			using var service = AvatarService.fromStream(stream);
+			using var service = AvatarService.FromStream(stream);
 
 			if (service is null)
 			{
