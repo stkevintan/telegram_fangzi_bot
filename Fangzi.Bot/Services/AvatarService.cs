@@ -7,25 +7,31 @@ using System.IO;
 using OpenCvSharp;
 using System.Text.RegularExpressions;
 using Fangzi.Bot.Interfaces;
+using HeyRed.Mime;
 
 namespace Fangzi.Bot.Services
 {
 
-    public record class AvatarResult
+    public record class AvatarResult: IDisposable
     {
         public static AvatarResult NotFound = new AvatarResult { ErrorMessage = "图呢？？？" };
         public static AvatarResult TooBig = new AvatarResult { ErrorMessage = "太大了，换一个！" };
         public static AvatarResult NoImageType = new AvatarResult { ErrorMessage = "不支持的文件类型QaQ" };
         public string? ErrorMessage;
-        public string? FileLocation;
+        public Stream? Stream;
 
-        public Task Match(Func<string, Task> onError, Func<string, Task> onOk)
+		public void Dispose()
+		{
+            Stream?.Dispose();
+		}
+
+		public Task Match(Func<string, Task> onError, Func<Stream, Task> onOk)
         {
             if (ErrorMessage is string message)
             {
                 return onError(message);
             }
-            return onOk(FileLocation!);
+            return onOk(Stream!);
         }
     }
 
@@ -40,18 +46,25 @@ namespace Fangzi.Bot.Services
         public AvatarService(ITelegramBotClient bot)
         {
             _bot = bot;
+            MimeGuesser.MagicFilePath = "/usr/lib/file/magic.mgc";
         }
 
         public async Task<AvatarResult> FromPhotoAsync(ISession session)
         {
             var photo = session.Message.ReplyToMessage?.Photo?.MaxBy(p => p.FileSize);
-            return await DownloadImage(photo, session, nameof(photo));
+            return await DownloadImage(photo, session, nameof(photo), "image");
+        }
+
+        public async Task<AvatarResult> FromChatPhotoChangedAsync(ISession session)
+        {
+            var photo = session.Message.ReplyToMessage?.NewChatPhoto?.MaxBy(p => p.FileSize);
+            return await DownloadImage(photo, session, nameof(photo), "image");
         }
 
         public async Task<AvatarResult> FromStickerAsync(ISession session)
         {
             var sticker = session.Message.ReplyToMessage?.Sticker;
-            return await DownloadImage(sticker, session, nameof(sticker));
+            return await DownloadImage(sticker, session, nameof(sticker), sticker!.IsAnimated ? null : "image");
         }
 
         public async Task<AvatarResult> FromDocumentAsync(ISession session)
@@ -60,12 +73,8 @@ namespace Fangzi.Bot.Services
             return await DownloadImage(doc, session, nameof(doc));
 
         }
-        string getTmpPath(string prefix, long chatId)
-        {
-            return Path.Join(Path.GetTempPath(), $"{prefix}{chatId}.jpg");
-        }
 
-        public async Task<AvatarResult> DownloadImage(FileBase? File, ISession session, string prefix)
+        public async Task<AvatarResult> DownloadImage(FileBase? File, ISession session, string prefix, string? mimeType = null)
         {
             if (File is null)
             {
@@ -74,33 +83,48 @@ namespace Fangzi.Bot.Services
 
             if (File.FileSize > _max_size)
             {
-				return AvatarResult.TooBig;
+                return AvatarResult.TooBig;
             }
-            var FileLocation = getTmpPath(prefix, session.Id);
-            using (var stream = System.IO.File.Create(FileLocation))
+            using var stream = new MemoryStream();
+            await _bot.GetInfoAndDownloadFileAsync(File.FileId, stream);
+            // reset Position
+            stream.Position = 0;
+            var MimeType = mimeType ?? MimeGuesser.GuessMimeType(stream);
+            // reset position
+            stream.Position = 0;
+            if(MimeType == "application/gzip")
             {
-                await _bot.GetInfoAndDownloadFileAsync(File.FileId, stream);
-            }
-            if (!checkIsImageType(FileLocation))
+               // TODO 
+            } 
+            if (!checkMimeType(MimeType))
             {
                 return AvatarResult.NoImageType;
             }
+            // TODO: snap a shot on that video
             (Scalar bg, int face) = parseText(session.Content);
-            using var src = new Mat(FileLocation, ImreadModes.Unchanged);
+            using var src = Mat.FromStream(stream, ImreadModes.Unchanged);
             using var src1 = addImageBackground(src, bg);
             using var dst = resize(src1);
-            dst.ImWrite(FileLocation);
-            return new AvatarResult { FileLocation = FileLocation };
+            var output = new MemoryStream();
+            dst.WriteToStream(output);
+            // reset position
+            output.Position = 0;
+            return new AvatarResult { Stream = output };
         }
 
-		bool checkIsImageType(string FileLocation)
-		{
-			return true;
-		}
+        bool checkMimeType(string mimeType)
+        {
+            return mimeType.Split("/")[0] switch
+            {
+                "image" => true,
+                "video" => true,
+                _ => false
+            };
+        }
 
         (Scalar, int) parseText(string text)
         {
-            // --color=<hex> --face=<int>
+            // /color=<hex> /face=<int>
             var bg = new Scalar(255, 255, 255);
             var face = 0;
             var colorRet = colorRegex.Match(text);
@@ -152,11 +176,12 @@ namespace Fangzi.Bot.Services
             {
                 return src;
             }
-            (var r, var g, var b) = (color[0], color[1], color[2]);
-            var dst = new Mat<Vec3b>(src);
+            (var b, var g, var r) = (color[0], color[1], color[2]);
+            // var dst = new Mat<Vec3b>(src);
+            var dst = new Mat(new Size(src.Width, src.Height), MatType.CV_8UC3);
             var sIndexer = src.GetGenericIndexer<Vec4b>();
+            var dIndexer = dst.GetGenericIndexer<Vec3b>();
 
-            var dIndexer = dst.GetIndexer();
             for (int y = 0; y < dst.Height; y++)
             {
                 for (int x = 0; x < dst.Width; x++)
@@ -164,9 +189,9 @@ namespace Fangzi.Bot.Services
                     Vec4b sColor = sIndexer[y, x];
                     Vec3b dColor = dIndexer[y, x];
                     var alpha = sColor.Item3 / 255.0;
-                    dColor.Item0 = Convert.ToByte((1.0 - alpha) * b + alpha * sColor.Item0);
-                    dColor.Item1 = Convert.ToByte((1.0 - alpha) * g + alpha * sColor.Item1);
-                    dColor.Item2 = Convert.ToByte((1.0 - alpha) * r + alpha * sColor.Item2);
+                    dColor.Item0 = Convert.ToByte((1 - alpha) * b + alpha * sColor.Item0);
+                    dColor.Item1 = Convert.ToByte((1 - alpha) * g + alpha * sColor.Item1);
+                    dColor.Item2 = Convert.ToByte((1 - alpha) * r + alpha * sColor.Item2);
                     // Don't forget set it back
                     dIndexer[y, x] = dColor;
                 }

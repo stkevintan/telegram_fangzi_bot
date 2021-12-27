@@ -6,7 +6,6 @@ using Fangzi.Bot.Interfaces;
 using Fangzi.Bot.Attributes;
 using Fangzi.Bot.Services;
 using Microsoft.Extensions.Logging;
-using Telegram.Bot.Exceptions;
 
 namespace Fangzi.Bot.Commands
 {
@@ -30,13 +29,14 @@ namespace Fangzi.Bot.Commands
 				MessageType.Photo => _service.FromPhotoAsync(Session),
 				MessageType.Sticker => _service.FromStickerAsync(Session),
 				MessageType.Document => _service.FromDocumentAsync(Session),
+				MessageType.ChatPhotoChanged => _service.FromChatPhotoChangedAsync(Session),
 				_ => null
 			};
 			if (resultTask is null) {
 				_logger.LogWarning($"Unsupported message type: {replyMessage?.Type}.");
 				await _bot.SendTextMessageAsync(
 					Session.Id,
-					"这是神马消息？？？",
+					"不支持的消息",
 					replyToMessageId: Session.Message.MessageId
 				);
 				return;
@@ -52,18 +52,15 @@ namespace Fangzi.Bot.Commands
 						replyToMessageId: Session.Message.MessageId
 					);
 				},
-				async (fileLocation) =>
+				async (stream) =>
 				{
 					try
 					{
-						using (var stream = System.IO.File.OpenRead(result.FileLocation!))
-						{
-							await _bot.SetChatPhotoAsync(replyMessage!.Chat.Id, stream);
-						}
+						await _bot.SetChatPhotoAsync(replyMessage!.Chat.Id, stream);
 					}
 					finally
 					{
-						System.IO.File.Delete(result.FileLocation!);
+						stream.Close();
 					}
 				}
 			);

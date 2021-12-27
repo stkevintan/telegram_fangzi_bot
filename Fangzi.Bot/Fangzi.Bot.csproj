@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
-    <PackageReference Include="Mime" Version="3.3.0" />
+    <PackageReference Include="Mime" Version="3.2.3" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="OpenCvSharp4" Version="4.5.3.20211207" />
     <PackageReference Include="OpenCvSharp4.runtime.ubuntu.18.04-x64" Version="4.5.3.20211207" />
