@@ -62,7 +62,7 @@ namespace Fangzi.Bot.Commands
 				_logger.LogWarning($"File size to large: {file.FileSize}");
 				await _bot.SendTextMessageAsync(
 					Session.Id,
-					"图太大了 >_<",
+					"太大了,喂!",
 					replyToMessageId: Session.Message.MessageId
 				);
 				return;

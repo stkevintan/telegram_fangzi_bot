@@ -6,9 +6,11 @@ namespace Fangzi.Bot.Interfaces
 	{
 		Message Message { get; }
 
-		Chat Chat => Message.Chat;
+		Chat Chat { get; }
 
-		long Id => Chat.Id;
+		long Id { get; }
+
+		User Me { get; }
 
 		string? Command { get; }
 

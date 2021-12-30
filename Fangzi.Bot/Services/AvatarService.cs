@@ -2,15 +2,19 @@ using System;
 using System.IO;
 using OpenCvSharp;
 using HeyRed.Mime;
+using Fangzi.Bot.Libraries;
 
 namespace Fangzi.Bot.Services
 {
 	public class AvatarService : IDisposable
 	{
 		readonly string _mimeType;
+		
 		Mat _src;
 
-		string MimeType => _mimeType;
+		static Random _rnd = new Random();
+
+		public string MimeType => _mimeType;
 
 		public static AvatarService? FromStream(Stream stream)
 		{
@@ -29,21 +33,14 @@ namespace Fangzi.Bot.Services
 
 		static Mat? MatFromVideo(Stream stream)
 		{
-			stream.Position = 0;
-			// save it to tmp file
-			var tmpLoc = Path.Join(Path.GetTempPath(), $"video-{System.Guid.NewGuid()}.tmp");
-			using (var fs = File.Create(tmpLoc))
-			{
-				stream.CopyTo(fs);
-			}
-			var error = true;
+			using var tmpStream = new TempStream(stream);
 			var src = new Mat();
+			var error = true;
 			try
 			{
-				using var capture = new VideoCapture(tmpLoc);
+				using var capture = new VideoCapture(tmpStream.Location);
 				var count = Convert.ToInt32(capture.Get(VideoCaptureProperties.FrameCount));
-				var rnd = new Random();
-				var frameIndex = rnd.Next(count);
+				var frameIndex = _rnd.Next(count);
 				capture.Set(VideoCaptureProperties.PosFrames, frameIndex);
 
 				if (capture.Read(src))
@@ -55,13 +52,9 @@ namespace Fangzi.Bot.Services
 			}
 			finally
 			{
-				if (error)
-				{
-					src.Dispose();
-				}
-				stream.Position = 0;
-				File.Delete(tmpLoc);
+				if (error) src.Dispose();
 			}
+
 		}
 
 		AvatarService(Mat src, string mimeType)
@@ -95,15 +88,12 @@ namespace Fangzi.Bot.Services
 					interpolation: InterpolationFlags.Area
 				);
 				error = false;
+				return updateSrc(dst);
 			}
 			finally
 			{
-				if (error)
-				{
-					dst.Dispose();
-				}
+				if (error) dst.Dispose();
 			}
-			return updateSrc(dst);
 		}
 
 		public AvatarService AddImageBackground(in (int, int, int) color)
@@ -136,25 +126,13 @@ namespace Fangzi.Bot.Services
 					}
 				}
 				error = false;
+				return updateSrc(dst);
 			}
 			finally
 			{
-				if (error)
-				{
-					dst.Dispose();
-				}
+				if (error) dst.Dispose();
 			}
-
-			return updateSrc(dst);
 		}
-
-		// public AvatarService CaptureVideo()
-		// {
-		// 	if (MimeType == "image/gif" || MimeType.Contains("video"))
-		// 	{
-		// 		var capture = new VideoCapture();
-		// 	}
-		// }
 
 		public Stream toStream()
 		{
@@ -169,11 +147,7 @@ namespace Fangzi.Bot.Services
 			}
 			finally
 			{
-				if (error)
-				{
-					output.Dispose();
-				}
-
+				if (error) output.Dispose();
 			}
 		}
 

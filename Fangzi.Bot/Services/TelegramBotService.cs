@@ -22,6 +22,7 @@ namespace Fangzi.Bot.Services
 		BotConfiguration _config;
 		ITelegramBotClient _bot;
 		RateLimitService _rls;
+		User? _me;
 
 		public TelegramBotService(
 			ILogger<TelegramBotService> logger,
@@ -86,7 +87,9 @@ namespace Fangzi.Bot.Services
 
 		public async Task TextMessageReceived(Message message)
 		{
-			ISession session = new Session(message);
+			_me = _me ?? (await _bot.GetMeAsync());
+
+			ISession session = new Session(message, _me);
 			var cmd = findCommand(session.Command);
 			if (cmd is ICommand c)
 			{

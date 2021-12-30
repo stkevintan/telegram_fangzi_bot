@@ -13,7 +13,6 @@ namespace Fangzi.Bot.Commands
 	[Command("help", Hidden = true)]
 	public class HelpCommand : Command
 	{
-		// Lazy<IEnumerable<ICommand>> _commands { get; set; }
 		public HelpCommand(ITelegramBotClient bot) : base(bot)
 		{
 		}
