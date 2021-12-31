@@ -29,10 +29,10 @@ namespace Fangzi.Bot.Commands
 	{
 		static int _max_size = 15 * (1 << 20);
 		static Regex colorRegex = new Regex(@"(?:\s|^)-b(?:ackground)?\s*=\s*#([0-9a-zA-Z]{3}|[0-9a-zA-Z]{6})\b", RegexOptions.IgnoreCase);
-		static Regex faceRegex = new Regex(@"(?:\s|^)-f(?:ace)\s*(=\s*(\d+))?\b", RegexOptions.IgnoreCase);
-		static Regex showFacesRegex = new Regex(@"(?:\s|^)-s(?:how_faces)\s*(=\s*(true|false))?\b", RegexOptions.IgnoreCase);
+		static Regex faceRegex = new Regex(@"(?:\s|^)-f(?:ace)?\s*(=\s*(\d+))?\b", RegexOptions.IgnoreCase);
+		static Regex showFacesRegex = new Regex(@"(?:\s|^)-s(?:how_faces)?\s*(=\s*(true|false))?\b", RegexOptions.IgnoreCase);
 
-		static Regex helpRegex = new Regex(@"(?:\s|^)-help\s*\b", RegexOptions.IgnoreCase);
+		static Regex helpRegex = new Regex(@"(?:\s|^)-h(?:elp)?\s*\b", RegexOptions.IgnoreCase);
 
 		ILogger<AvatarCommand> _logger;
 
@@ -51,7 +51,7 @@ namespace Fangzi.Bot.Commands
 				string markdownContent = @"Set the replied photo as the group's avatar:  
 `-b[ackground]=<hex color>`: set the background color for transparent avatars
 `-f[ace][=<int>]`: auto detect the anime faces, crop and center the i-th face (start from 0) as the avatar (default to center all the faces)
-`-s[howFaces][=<bool>]`: mark all the anime faces detected in the given photos
+`-s[how_faces][=<bool>]`: mark all the anime faces detected in the given photos
 ";
 				await _bot.SendTextMessageAsync(
 					Session.Id,

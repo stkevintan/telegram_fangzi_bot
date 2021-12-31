@@ -38,12 +38,6 @@ namespace Fangzi.Bot.Services
 			_bot = bot;
 		}
 
-		public TelegramBotService AddCommand(ICommand command)
-		{
-			_commands.Append(command);
-			return this;
-		}
-
 		public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
 		{
 			var handler = update.Type switch
