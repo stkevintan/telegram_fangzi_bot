@@ -7,7 +7,7 @@ using Fangzi.Bot.Attributes;
 
 namespace Fangzi.Bot.Commands
 {
-	[Command("speak", Description = "speak given text out")]
+	[Command("speak", Description = "speak the given text")]
 	[RateLimited()]
 	public class SpeakCommand : Command
 	{

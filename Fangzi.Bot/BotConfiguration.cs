@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.Extensions.Configuration;
 
 namespace Fangzi.Bot;
@@ -11,6 +12,8 @@ public class BotConfiguration
 	public string SpeechRegion { get; }
 	public List<string> AdminUsers { get; }
 
+	public string AnimeFaceDetectCascadePath { get; }
+
 	public int CooldownSec { get; }
 
 	public BotConfiguration(IConfiguration configuration)
@@ -20,6 +23,11 @@ public class BotConfiguration
 		SpeechRegion = configuration[nameof(SpeechRegion)];
 		AdminUsers = new List<string>(configuration.GetSection(nameof(AdminUsers))?.Get<string[]>() ?? new string[] { });
 		CooldownSec = configuration.GetValue<int?>(nameof(CooldownSec)) ?? 10;
+		AnimeFaceDetectCascadePath = configuration[nameof(AnimeFaceDetectCascadePath)];
+		if (AnimeFaceDetectCascadePath is string p && !Path.IsPathRooted(p))
+		{
+			AnimeFaceDetectCascadePath = Path.GetFullPath(p);
+		}
 		validate();
 	}
 
@@ -45,6 +53,11 @@ public class BotConfiguration
 		if (CooldownSec < 0)
 		{
 			throw new ArgumentOutOfRangeException(nameof(CooldownSec), "rate idle seconds should not be less than 0");
+		}
+
+		if (string.IsNullOrEmpty(AnimeFaceDetectCascadePath))
+		{
+			throw new ArgumentException(nameof(AnimeFaceDetectCascadePath), "anime face detect cascade path is null or empty.");
 		}
 
 		// if (string.IsNullOrEmpty(TulingApiKey))

@@ -100,7 +100,7 @@ namespace Fangzi.Bot.Services
 				catch (Exception ex)
 				{
 					await _bot.SendTextMessageAsync(session.Id, "好像什么地方坏掉了QaQ");
-					_logger.LogTrace(ex, $"Failed to run command {session.Command ?? "<Empty>"}");
+					_logger.LogError(ex, $"Failed to run command {session.Command ?? "<Empty>"}");
 				}
 			}
 		}

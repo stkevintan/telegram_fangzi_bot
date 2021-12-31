@@ -3,13 +3,14 @@ using System.IO;
 using OpenCvSharp;
 using HeyRed.Mime;
 using Fangzi.Bot.Libraries;
+using Range = OpenCvSharp.Range;
 
 namespace Fangzi.Bot.Services
 {
 	public class AvatarService : IDisposable
 	{
 		readonly string _mimeType;
-		
+
 		Mat _src;
 
 		static Random _rnd = new Random();
@@ -132,6 +133,74 @@ namespace Fangzi.Bot.Services
 			{
 				if (error) dst.Dispose();
 			}
+		}
+
+		public AvatarService AnimeFaceDetect(string cascadePath = "./lbpcascade_animeface.xml", bool crop = true, int index = -1)
+		{
+			var cascade = new CascadeClassifier(cascadePath);
+			using var gray = new Mat(_src.Rows, _src.Cols, _src.Type());
+			Cv2.CvtColor(_src, gray, ColorConversionCodes.BGR2GRAY);
+			var faces = cascade.DetectMultiScale(gray, minNeighbors: 5, minSize: new Size(24, 24));
+			var faceLen = faces.Length;
+			if (faceLen == 0)
+			{
+				Console.WriteLine("no face detected.");
+				// no face
+				return this;
+			}
+			(double faceX, double faceY) = (0, 0);
+			if (index < 0)
+			{
+				foreach (var face in faces)
+				{
+					faceX += 1.0 * (face.X + face.Width / 2.0) / faceLen;
+					faceY += 1.0 * (face.Y + face.Height / 2.0) / faceLen;
+					if (!crop)
+					{
+						Cv2.Rectangle(_src, face, new Scalar(0, 0, 255), 5);
+					}
+				}
+			}
+			else if (index < faceLen)
+			{
+				var face = faces[index];
+				faceX += face.X + face.Width / 2.0;
+				faceY += face.Y + face.Height / 2.0;
+			}
+			if (!crop)
+			{
+				return this;
+			}
+			(int faceXi, int faceYi) = (Convert.ToInt32(faceX), Convert.ToInt32(faceY));
+			int cxMin, cxMax, cyMin, cyMax;
+			if (_src.Rows > _src.Cols)
+			{
+				(cxMin, cxMax) = (0, _src.Cols);
+				(cyMin, cyMax) = (faceYi - (_src.Cols >> 1), faceYi + (_src.Cols >> 1));
+				if (cyMin < 0)
+				{
+					(cyMin, cyMax) = (0, _src.Cols);
+				}
+				if (cyMax > _src.Rows)
+				{
+					(cyMin, cyMax) = (_src.Rows - _src.Cols, _src.Rows);
+				}
+			}
+			else
+			{
+				(cxMin, cxMax) = (faceXi - (_src.Rows >> 1), faceXi + (_src.Rows >> 1));
+				(cyMin, cyMax) = (0, _src.Rows);
+				if (cxMin < 0)
+				{
+					(cxMin, cxMax) = (0, _src.Rows);
+				}
+				if (cxMax > _src.Cols)
+				{
+					(cxMin, cxMax) = (_src.Cols - _src.Rows, _src.Cols);
+				}
+			}
+			_src = new Mat(_src, new Range(cyMin, cyMax), new Range(cxMin, cxMax));
+			return this;
 		}
 
 		public Stream toStream()
